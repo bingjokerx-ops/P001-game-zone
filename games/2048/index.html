@@ -1,0 +1,417 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <title>2048</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Arial', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        h1 {
+            color: white;
+            font-size: 48px;
+            margin-bottom: 10px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.2);
+        }
+
+        .score-container {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .score-box {
+            background: rgba(255, 255, 255, 0.2);
+            padding: 10px 25px;
+            border-radius: 8px;
+            text-align: center;
+            color: white;
+        }
+
+        .score-box .label {
+            font-size: 12px;
+            text-transform: uppercase;
+            opacity: 0.8;
+        }
+
+        .score-box .value {
+            font-size: 24px;
+            font-weight: bold;
+        }
+
+        .game-container {
+            position: relative;
+            background: #bbada0;
+            border-radius: 10px;
+            padding: 15px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.3);
+        }
+
+        .grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 10px;
+        }
+
+        .cell {
+            width: 80px;
+            height: 80px;
+            background: rgba(238, 228, 218, 0.35);
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            font-weight: bold;
+            color: #776e65;
+            transition: all 0.15s ease;
+        }
+
+        .cell[data-value="2"] {
+            background: #eee4da;
+        }
+
+        .cell[data-value="4"] {
+            background: #ede0c8;
+        }
+
+        .cell[data-value="8"] {
+            background: #f2b179;
+            color: white;
+        }
+
+        .cell[data-value="16"] {
+            background: #f59563;
+            color: white;
+        }
+
+        .cell[data-value="32"] {
+            background: #f67c5f;
+            color: white;
+        }
+
+        .cell[data-value="64"] {
+            background: #f65e3b;
+            color: white;
+        }
+
+        .cell[data-value="128"] {
+            background: #edcf72;
+            color: white;
+            font-size: 28px;
+        }
+
+        .cell[data-value="256"] {
+            background: #edcc61;
+            color: white;
+            font-size: 28px;
+        }
+
+        .cell[data-value="512"] {
+            background: #edc850;
+            color: white;
+            font-size: 28px;
+        }
+
+        .cell[data-value="1024"] {
+            background: #edc53f;
+            color: white;
+            font-size: 24px;
+        }
+
+        .cell[data-value="2048"] {
+            background: #edc22e;
+            color: white;
+            font-size: 24px;
+        }
+
+        .game-over {
+            position: absolute;
+            inset: 0;
+            background: rgba(238, 228, 218, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 10px;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s;
+        }
+
+        .game-over.show {
+            opacity: 1;
+            pointer-events: auto;
+        }
+
+        .game-over h2 {
+            font-size: 36px;
+            color: #776e65;
+            margin-bottom: 20px;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            color: white;
+            background: #8f7a66;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .btn:hover {
+            background: #9f8b77;
+        }
+
+        .controls {
+            margin-top: 20px;
+            color: white;
+            opacity: 0.8;
+            font-size: 14px;
+        }
+
+        @media (max-width: 400px) {
+            .cell {
+                width: 65px;
+                height: 65px;
+                font-size: 24px;
+            }
+
+            .cell[data-value="128"],
+            .cell[data-value="256"],
+            .cell[data-value="512"] {
+                font-size: 20px;
+            }
+
+            .cell[data-value="1024"],
+            .cell[data-value="2048"] {
+                font-size: 16px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <h1>2048</h1>
+
+    <div class="score-container">
+        <div class="score-box">
+            <div class="label">分数</div>
+            <div class="value" id="score">0</div>
+        </div>
+        <div class="score-box">
+            <div class="label">最高分</div>
+            <div class="value" id="best">0</div>
+        </div>
+    </div>
+
+    <div class="game-container">
+        <div class="grid" id="grid"></div>
+        <div class="game-over" id="game-over">
+            <h2 id="end-message">游戏结束!</h2>
+            <button class="btn" onclick="initGame()">再来一局</button>
+        </div>
+    </div>
+
+    <p class="controls">使用方向键或滑动屏幕来移动</p>
+
+    <script>
+        let grid = [];
+        let score = 0;
+        let best = parseInt(localStorage.getItem('2048-best')) || 0;
+
+        const gridElement = document.getElementById('grid');
+        const scoreElement = document.getElementById('score');
+        const bestElement = document.getElementById('best');
+        const gameOverElement = document.getElementById('game-over');
+        const endMessage = document.getElementById('end-message');
+
+        function initGame() {
+            grid = Array(4).fill(null).map(() => Array(4).fill(0));
+            score = 0;
+            updateScore();
+            bestElement.textContent = best;
+            gameOverElement.classList.remove('show');
+            addRandomTile();
+            addRandomTile();
+            renderGrid();
+        }
+
+        function addRandomTile() {
+            const empty = [];
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (grid[i][j] === 0) empty.push({ i, j });
+                }
+            }
+            if (empty.length > 0) {
+                const { i, j } = empty[Math.floor(Math.random() * empty.length)];
+                grid[i][j] = Math.random() < 0.9 ? 2 : 4;
+            }
+        }
+
+        function renderGrid() {
+            gridElement.innerHTML = '';
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    const value = grid[i][j];
+                    if (value > 0) {
+                        cell.textContent = value;
+                        cell.dataset.value = value;
+                    }
+                    gridElement.appendChild(cell);
+                }
+            }
+        }
+
+        function updateScore() {
+            scoreElement.textContent = score;
+            if (score > best) {
+                best = score;
+                bestElement.textContent = best;
+                localStorage.setItem('2048-best', best);
+            }
+        }
+
+        function slide(row) {
+            let arr = row.filter(x => x !== 0);
+            for (let i = 0; i < arr.length - 1; i++) {
+                if (arr[i] === arr[i + 1]) {
+                    arr[i] *= 2;
+                    score += arr[i];
+                    arr.splice(i + 1, 1);
+                }
+            }
+            while (arr.length < 4) arr.push(0);
+            return arr;
+        }
+
+        function move(direction) {
+            let moved = false;
+            const oldGrid = JSON.stringify(grid);
+
+            if (direction === 'left') {
+                for (let i = 0; i < 4; i++) {
+                    grid[i] = slide(grid[i]);
+                }
+            } else if (direction === 'right') {
+                for (let i = 0; i < 4; i++) {
+                    grid[i] = slide(grid[i].reverse()).reverse();
+                }
+            } else if (direction === 'up') {
+                for (let j = 0; j < 4; j++) {
+                    let col = [grid[0][j], grid[1][j], grid[2][j], grid[3][j]];
+                    col = slide(col);
+                    for (let i = 0; i < 4; i++) grid[i][j] = col[i];
+                }
+            } else if (direction === 'down') {
+                for (let j = 0; j < 4; j++) {
+                    let col = [grid[3][j], grid[2][j], grid[1][j], grid[0][j]];
+                    col = slide(col);
+                    for (let i = 0; i < 4; i++) grid[3 - i][j] = col[i];
+                }
+            }
+
+            if (JSON.stringify(grid) !== oldGrid) {
+                moved = true;
+                addRandomTile();
+                updateScore();
+                renderGrid();
+                checkGameState();
+            }
+        }
+
+        function checkGameState() {
+            // 检查是否达到2048
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (grid[i][j] === 2048) {
+                        endMessage.textContent = '你赢了! 🎉';
+                        gameOverElement.classList.add('show');
+                        return;
+                    }
+                }
+            }
+
+            // 检查是否还有空格
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (grid[i][j] === 0) return;
+                }
+            }
+
+            // 检查是否还能合并
+            for (let i = 0; i < 4; i++) {
+                for (let j = 0; j < 4; j++) {
+                    if (j < 3 && grid[i][j] === grid[i][j + 1]) return;
+                    if (i < 3 && grid[i][j] === grid[i + 1][j]) return;
+                }
+            }
+
+            // 游戏结束
+            endMessage.textContent = '游戏结束!';
+            gameOverElement.classList.add('show');
+            // 向父页面发送分数
+            window.parent.postMessage({ type: 'gameScore', score: score, game: '2048' }, '*');
+        }
+
+        // 键盘控制
+        document.addEventListener('keydown', (e) => {
+            if (['ArrowLeft', 'ArrowRight', 'ArrowUp', 'ArrowDown'].includes(e.key)) {
+                e.preventDefault();
+                const dir = e.key.replace('Arrow', '').toLowerCase();
+                move(dir);
+            }
+        });
+
+        // 触摸控制
+        let touchStartX, touchStartY;
+        document.addEventListener('touchstart', (e) => {
+            touchStartX = e.touches[0].clientX;
+            touchStartY = e.touches[0].clientY;
+        });
+
+        document.addEventListener('touchend', (e) => {
+            if (!touchStartX || !touchStartY) return;
+
+            const dx = e.changedTouches[0].clientX - touchStartX;
+            const dy = e.changedTouches[0].clientY - touchStartY;
+
+            if (Math.abs(dx) > Math.abs(dy)) {
+                move(dx > 0 ? 'right' : 'left');
+            } else {
+                move(dy > 0 ? 'down' : 'up');
+            }
+
+            touchStartX = null;
+            touchStartY = null;
+        });
+
+        // 初始化
+        initGame();
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

@@ -1,0 +1,291 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>接水果</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #87CEEB 0%, #98FB98 50%, #228B22 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .hud {
+            margin-top: 20px;
+            display: flex;
+            gap: 40px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 30px;
+            border-radius: 30px;
+            color: white;
+            font-size: 20px;
+        }
+
+        .lives {
+            color: #ff4444;
+        }
+
+        #gameCanvas {
+            display: block;
+            margin-top: 20px;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            font-size: 20px;
+            background: #22c55e;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hud">
+        <div>🍎 <span id="score">0</span></div>
+        <div class="lives">❤️ <span id="lives">3</span></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="start" class="overlay">
+        <h2>🧺 接水果</h2>
+        <p>左右移动篮子接住水果!</p>
+        <p>小心炸弹! 💣</p>
+        <button class="btn" onclick="startGame()">开始游戏</button>
+    </div>
+
+    <div id="gameover" class="overlay hidden">
+        <h2>游戏结束</h2>
+        <p>得分: <span id="finalScore">0</span></p>
+        <p style="color:#ffd700;">最高分: <span id="bestScore">0</span></p>
+        <button class="btn" onclick="startGame()">再来一次</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 500;
+        canvas.height = 500;
+
+        const fruits = ['🍎', '🍊', '🍋', '🍇', '🍓', '🍑', '🥝', '🍌'];
+        let basket = { x: 250, width: 80 };
+        let items = [];
+        let score = 0;
+        let lives = 3;
+        let gameRunning = false;
+        let speed = 3;
+        let bestScore = localStorage.getItem('catchFruitsBest') || 0;
+
+        function drawBasket() {
+            const y = canvas.height - 60;
+
+            // Basket body
+            ctx.fillStyle = '#8B4513';
+            ctx.beginPath();
+            ctx.moveTo(basket.x - basket.width / 2, y);
+            ctx.lineTo(basket.x - basket.width / 2 - 10, y + 40);
+            ctx.lineTo(basket.x + basket.width / 2 + 10, y + 40);
+            ctx.lineTo(basket.x + basket.width / 2, y);
+            ctx.closePath();
+            ctx.fill();
+
+            // Basket rim
+            ctx.fillStyle = '#654321';
+            ctx.fillRect(basket.x - basket.width / 2 - 5, y - 5, basket.width + 10, 10);
+
+            // Basket pattern
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 2;
+            for (let i = -30; i <= 30; i += 15) {
+                ctx.beginPath();
+                ctx.moveTo(basket.x + i, y);
+                ctx.lineTo(basket.x + i * 0.8, y + 40);
+                ctx.stroke();
+            }
+        }
+
+        function spawnItem() {
+            const isBomb = Math.random() < 0.15;
+            items.push({
+                x: 50 + Math.random() * (canvas.width - 100),
+                y: -30,
+                emoji: isBomb ? '💣' : fruits[Math.floor(Math.random() * fruits.length)],
+                isBomb,
+                rotation: 0,
+                rotSpeed: (Math.random() - 0.5) * 0.1
+            });
+        }
+
+        function drawItems() {
+            items.forEach(item => {
+                ctx.save();
+                ctx.translate(item.x, item.y);
+                ctx.rotate(item.rotation);
+                ctx.font = '40px Arial';
+                ctx.textAlign = 'center';
+                ctx.textBaseline = 'middle';
+                ctx.fillText(item.emoji, 0, 0);
+                ctx.restore();
+            });
+        }
+
+        function update() {
+            // Move items
+            items.forEach(item => {
+                item.y += speed;
+                item.rotation += item.rotSpeed;
+            });
+
+            // Check catches and misses
+            items = items.filter(item => {
+                // Caught by basket
+                if (item.y > canvas.height - 80 && item.y < canvas.height - 40 &&
+                    Math.abs(item.x - basket.x) < basket.width / 2 + 20) {
+                    if (item.isBomb) {
+                        lives--;
+                        document.getElementById('lives').textContent = lives;
+                        if (lives <= 0) gameOver();
+                    } else {
+                        score += 10;
+                        document.getElementById('score').textContent = score;
+                    }
+                    return false;
+                }
+
+                // Missed fruit (fell off screen)
+                if (item.y > canvas.height + 30) {
+                    if (!item.isBomb) {
+                        lives--;
+                        document.getElementById('lives').textContent = lives;
+                        if (lives <= 0) gameOver();
+                    }
+                    return false;
+                }
+
+                return true;
+            });
+
+            // Spawn new items
+            if (Math.random() < 0.03 + score * 0.0001) {
+                spawnItem();
+            }
+
+            // Increase speed
+            speed = 3 + Math.floor(score / 100) * 0.5;
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            if (score > bestScore) {
+                bestScore = score;
+                localStorage.setItem('catchFruitsBest', bestScore);
+            }
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('bestScore').textContent = bestScore;
+            document.getElementById('gameover').classList.remove('hidden');
+        }
+
+        function startGame() {
+            basket = { x: 250, width: 80 };
+            items = [];
+            score = 0;
+            lives = 3;
+            speed = 3;
+            gameRunning = true;
+
+            document.getElementById('score').textContent = '0';
+            document.getElementById('lives').textContent = '3';
+            document.getElementById('start').classList.add('hidden');
+            document.getElementById('gameover').classList.add('hidden');
+
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            // Sky gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(1, '#E0F6FF');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Ground
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+
+            update();
+            drawItems();
+            drawBasket();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Keyboard controls
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') basket.x = Math.max(basket.width / 2, basket.x - 20);
+            if (e.key === 'ArrowRight') basket.x = Math.min(canvas.width - basket.width / 2, basket.x + 20);
+        });
+
+        // Mouse/touch controls
+        canvas.addEventListener('mousemove', (e) => {
+            if (!gameRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            basket.x = Math.max(basket.width / 2, Math.min(canvas.width - basket.width / 2, e.clientX - rect.left));
+        });
+
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!gameRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            basket.x = Math.max(basket.width / 2, Math.min(canvas.width - basket.width / 2, touch.clientX - rect.left));
+        });
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

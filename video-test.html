@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="UTF-8">
+    <title>简单视频测试</title>
+    <style>
+        body {
+            font-family: Arial;
+            padding: 40px;
+            background: #f0f0f0;
+        }
+
+        .card {
+            width: 300px;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            margin: 20px 0;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+        }
+
+        .thumb {
+            position: relative;
+            height: 200px;
+            background: #667eea;
+        }
+
+        .thumb img,
+        .thumb video {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .thumb img {
+            z-index: 2;
+            transition: opacity 0.3s;
+        }
+
+        .thumb video {
+            z-index: 1;
+        }
+
+        .card:hover .thumb img {
+            opacity: 0;
+        }
+
+        .card:hover .thumb video {
+            z-index: 3;
+        }
+
+        .info {
+            padding: 15px;
+        }
+
+        pre {
+            background: #eee;
+            padding: 10px;
+            margin: 10px 0;
+            overflow: auto;
+            font-size: 12px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🧪 视频测试</h1>
+
+    <h2>测试1: 2048 (纯CSS悬停)</h2>
+    <p>鼠标放上去测试:</p>
+    <div class="card">
+        <div class="thumb">
+            <img src="assets/covers/2048.jpg" alt="2048">
+            <video muted loop autoplay>
+                <source src="assets/videos/2048.mp4.mkv" type="video/x-matroska">
+            </video>
+        </div>
+        <div class="info">2048</div>
+    </div>
+
+    <h2>测试2: 贪吃蛇 (纯CSS悬停)</h2>
+    <div class="card">
+        <div class="thumb">
+            <img src="assets/covers/贪吃蛇.jpg" alt="贪吃蛇">
+            <video muted loop autoplay>
+                <source src="assets/videos/贪吃蛇.mkv" type="video/x-matroska">
+            </video>
+        </div>
+        <div class="info">贪吃蛇</div>
+    </div>
+
+    <h2>测试3: 直接播放视频</h2>
+    <p>下面的视频应该自动播放:</p>
+    <video width="300" height="200" muted loop autoplay controls style="background:#000">
+        <source src="assets/videos/2048.mp4.mkv" type="video/x-matroska">
+        你的浏览器不支持视频
+    </video>
+
+    <h2>📋 诊断信息</h2>
+    <div id="info"></div>
+
+    <script>
+        const info = document.getElementById('info');
+        let html = '';
+
+        // 检查视频支持
+        const v = document.createElement('video');
+        html += '<h3>浏览器视频格式支持:</h3><pre>';
+        html += 'MP4: ' + (v.canPlayType('video/mp4') || '不支持') + '\n';
+        html += 'WebM: ' + (v.canPlayType('video/webm') || '不支持') + '\n';
+        html += 'MKV: ' + (v.canPlayType('video/x-matroska') || '不支持') + '\n';
+        html += '</pre>';
+
+        // 检查视频元素
+        const videos = document.querySelectorAll('video');
+        html += '<h3>视频元素状态:</h3>';
+        videos.forEach((video, i) => {
+            html += `<pre>视频${i + 1}: `;
+            html += `src="${video.querySelector('source')?.src || video.src}"\n`;
+            html += `networkState: ${video.networkState} (0=空, 1=加载中, 2=加载元数据, 3=有数据)\n`;
+            html += `readyState: ${video.readyState} (0-4, 4=可播放)\n`;
+            html += `error: ${video.error ? video.error.message : '无'}\n`;
+            html += '</pre>';
+
+            video.addEventListener('error', (e) => {
+                console.error('视频错误:', e);
+                alert('视频' + (i + 1) + '加载失败!');
+            });
+
+            video.addEventListener('loadeddata', () => {
+                console.log('视频' + (i + 1) + '已加载');
+            });
+        });
+
+        info.innerHTML = html;
+
+        // 3秒后更新状态
+        setTimeout(() => {
+            let statusHtml = '<h3>3秒后状态:</h3>';
+            videos.forEach((video, i) => {
+                statusHtml += `<pre>视频${i + 1}: readyState=${video.readyState}, paused=${video.paused}</pre>`;
+            });
+            info.innerHTML += statusHtml;
+        }, 3000);
+    </script>
+</body>
+
+</html>

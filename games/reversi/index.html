@@ -1,0 +1,344 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>黑白棋</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .score-board {
+            display: flex;
+            gap: 50px;
+            margin-bottom: 20px;
+        }
+
+        .player-score {
+            text-align: center;
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+        }
+
+        .player-score.active {
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.5);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .player-score h3 {
+            margin-bottom: 10px;
+        }
+
+        .player-score .disc {
+            display: inline-block;
+            width: 30px;
+            height: 30px;
+            border-radius: 50%;
+            margin-right: 10px;
+            vertical-align: middle;
+        }
+
+        .disc.black {
+            background: #222;
+            border: 2px solid #555;
+        }
+
+        .disc.white {
+            background: #fff;
+            border: 2px solid #ddd;
+        }
+
+        .score {
+            font-size: 36px;
+            font-weight: bold;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            gap: 2px;
+            padding: 10px;
+            background: #0d0d1a;
+            border-radius: 10px;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            background: #228b22;
+            border-radius: 4px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+
+        .cell:hover {
+            background: #2ecc71;
+        }
+
+        .cell.valid {
+            background: #27ae60;
+            cursor: pointer;
+        }
+
+        .cell .piece {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        .cell .piece.black {
+            background: radial-gradient(circle at 30% 30%, #555, #000);
+        }
+
+        .cell .piece.white {
+            background: radial-gradient(circle at 30% 30%, #fff, #ccc);
+        }
+
+        .cell .piece.flip {
+            animation: flip 0.4s ease-in-out;
+        }
+
+        @keyframes flip {
+            0% {
+                transform: rotateY(0deg);
+            }
+
+            50% {
+                transform: rotateY(90deg);
+            }
+
+            100% {
+                transform: rotateY(0deg);
+            }
+        }
+
+        .message {
+            margin-top: 20px;
+            padding: 15px 30px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            font-size: 18px;
+        }
+
+        .btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #1a1a2e;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>⚫ 黑白棋 ⚪</h1>
+    <div class="score-board">
+        <div class="player-score active" id="blackScore">
+            <h3><span class="disc black"></span>黑棋</h3>
+            <div class="score" id="blackCount">2</div>
+        </div>
+        <div class="player-score" id="whiteScore">
+            <h3><span class="disc white"></span>白棋</h3>
+            <div class="score" id="whiteCount">2</div>
+        </div>
+    </div>
+    <div class="board" id="board"></div>
+    <div class="message" id="message">黑棋先行</div>
+    <button class="btn" onclick="initGame()">🔄 重新开始</button>
+
+    <script>
+        const SIZE = 8;
+        let board = [];
+        let currentPlayer = 'black';
+        const directions = [
+            [-1, -1], [-1, 0], [-1, 1],
+            [0, -1], [0, 1],
+            [1, -1], [1, 0], [1, 1]
+        ];
+
+        function initGame() {
+            // Initialize board
+            board = [];
+            for (let y = 0; y < SIZE; y++) {
+                board[y] = [];
+                for (let x = 0; x < SIZE; x++) {
+                    board[y][x] = null;
+                }
+            }
+
+            // Initial pieces
+            board[3][3] = 'white';
+            board[3][4] = 'black';
+            board[4][3] = 'black';
+            board[4][4] = 'white';
+
+            currentPlayer = 'black';
+            updateScore();
+            renderBoard();
+        }
+
+        function renderBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+
+            const validMoves = getValidMoves(currentPlayer);
+
+            for (let y = 0; y < SIZE; y++) {
+                for (let x = 0; x < SIZE; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+
+                    if (validMoves.some(m => m.x === x && m.y === y)) {
+                        cell.classList.add('valid');
+                    }
+
+                    if (board[y][x]) {
+                        const piece = document.createElement('div');
+                        piece.className = `piece ${board[y][x]}`;
+                        cell.appendChild(piece);
+                    }
+
+                    cell.onclick = () => makeMove(x, y);
+                    boardEl.appendChild(cell);
+                }
+            }
+
+            // Update active player display
+            document.getElementById('blackScore').classList.toggle('active', currentPlayer === 'black');
+            document.getElementById('whiteScore').classList.toggle('active', currentPlayer === 'white');
+            document.getElementById('message').textContent =
+                currentPlayer === 'black' ? '黑棋回合' : '白棋回合';
+        }
+
+        function getOpponent(player) {
+            return player === 'black' ? 'white' : 'black';
+        }
+
+        function getFlips(x, y, player) {
+            if (board[y][x]) return [];
+
+            const opponent = getOpponent(player);
+            const allFlips = [];
+
+            for (const [dy, dx] of directions) {
+                const flips = [];
+                let nx = x + dx;
+                let ny = y + dy;
+
+                while (nx >= 0 && nx < SIZE && ny >= 0 && ny < SIZE && board[ny][nx] === opponent) {
+                    flips.push({ x: nx, y: ny });
+                    nx += dx;
+                    ny += dy;
+                }
+
+                if (flips.length > 0 && nx >= 0 && nx < SIZE && ny >= 0 && ny < SIZE && board[ny][nx] === player) {
+                    allFlips.push(...flips);
+                }
+            }
+
+            return allFlips;
+        }
+
+        function getValidMoves(player) {
+            const moves = [];
+            for (let y = 0; y < SIZE; y++) {
+                for (let x = 0; x < SIZE; x++) {
+                    if (getFlips(x, y, player).length > 0) {
+                        moves.push({ x, y });
+                    }
+                }
+            }
+            return moves;
+        }
+
+        function makeMove(x, y) {
+            const flips = getFlips(x, y, currentPlayer);
+            if (flips.length === 0) return;
+
+            // Place piece
+            board[y][x] = currentPlayer;
+
+            // Flip pieces
+            for (const flip of flips) {
+                board[flip.y][flip.x] = currentPlayer;
+            }
+
+            // Switch player
+            currentPlayer = getOpponent(currentPlayer);
+
+            // Check if new player can move
+            if (getValidMoves(currentPlayer).length === 0) {
+                currentPlayer = getOpponent(currentPlayer);
+
+                if (getValidMoves(currentPlayer).length === 0) {
+                    // Game over
+                    gameOver();
+                    return;
+                }
+
+                document.getElementById('message').textContent =
+                    `${currentPlayer === 'black' ? '黑棋' : '白棋'}无法移动，跳过回合`;
+            }
+
+            updateScore();
+            renderBoard();
+        }
+
+        function updateScore() {
+            let black = 0, white = 0;
+            for (let y = 0; y < SIZE; y++) {
+                for (let x = 0; x < SIZE; x++) {
+                    if (board[y][x] === 'black') black++;
+                    if (board[y][x] === 'white') white++;
+                }
+            }
+            document.getElementById('blackCount').textContent = black;
+            document.getElementById('whiteCount').textContent = white;
+        }
+
+        function gameOver() {
+            let black = parseInt(document.getElementById('blackCount').textContent);
+            let white = parseInt(document.getElementById('whiteCount').textContent);
+
+            let winner;
+            if (black > white) winner = '🎉 黑棋获胜!';
+            else if (white > black) winner = '🎉 白棋获胜!';
+            else winner = '🤝 平局!';
+
+            document.getElementById('message').textContent = `游戏结束! ${winner}`;
+        }
+
+        initGame();
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

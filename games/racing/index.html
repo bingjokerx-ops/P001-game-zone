@@ -1,0 +1,301 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>赛车</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .hud {
+            position: fixed;
+            top: 20px;
+            display: flex;
+            gap: 40px;
+            color: white;
+            font-size: 24px;
+            z-index: 100;
+        }
+
+        .speed {
+            color: #00ff00;
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            font-size: 20px;
+            background: #ff4444;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 20px;
+            display: flex;
+            gap: 60px;
+        }
+
+        .control-btn {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            border: none;
+            font-size: 28px;
+            background: rgba(255, 255, 255, 0.8);
+            cursor: pointer;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hud">
+        <div>🏆 <span id="score">0</span></div>
+        <div class="speed">⚡ <span id="speed">0</span> km/h</div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="controls">
+        <button class="control-btn" id="leftBtn">◀</button>
+        <button class="control-btn" id="rightBtn">▶</button>
+    </div>
+
+    <div id="start" class="overlay">
+        <h2>🏎️ 极速赛车</h2>
+        <p>← → 或 A D 切换车道</p>
+        <p>躲避其他车辆!</p>
+        <button class="btn" onclick="startGame()">开始游戏</button>
+    </div>
+
+    <div id="gameover" class="overlay hidden">
+        <h2>💥 撞车了!</h2>
+        <p>得分: <span id="finalScore">0</span></p>
+        <p style="color:#ffd700;">最高分: <span id="bestScore">0</span></p>
+        <button class="btn" onclick="startGame()">再来一次</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 400;
+        canvas.height = 600;
+
+        const LANES = [100, 200, 300];
+        let player = { lane: 1, x: LANES[1], y: 500 };
+        let enemies = [];
+        let roadLines = [];
+        let score = 0;
+        let speed = 5;
+        let gameRunning = false;
+        let bestScore = localStorage.getItem('racingBest') || 0;
+
+        // Initialize road lines
+        for (let i = 0; i < 10; i++) {
+            roadLines.push({ y: i * 70 });
+        }
+
+        function drawRoad() {
+            // Road background
+            ctx.fillStyle = '#333';
+            ctx.fillRect(50, 0, 300, canvas.height);
+
+            // Road edges
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(48, 0, 4, canvas.height);
+            ctx.fillRect(348, 0, 4, canvas.height);
+
+            // Lane dividers
+            ctx.fillStyle = '#ffff00';
+            roadLines.forEach(line => {
+                ctx.fillRect(148, line.y, 4, 40);
+                ctx.fillRect(248, line.y, 4, 40);
+                line.y += speed;
+                if (line.y > canvas.height) line.y = -40;
+            });
+
+            // Grass
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, 0, 48, canvas.height);
+            ctx.fillRect(352, 0, 48, canvas.height);
+        }
+
+        function drawCar(x, y, color, isPlayer) {
+            ctx.save();
+            ctx.translate(x, y);
+
+            // Car body
+            ctx.fillStyle = color;
+            ctx.beginPath();
+            ctx.roundRect(-20, -35, 40, 70, 8);
+            ctx.fill();
+
+            // Windshield
+            ctx.fillStyle = isPlayer ? '#87CEEB' : '#333';
+            ctx.fillRect(-15, -25, 30, 20);
+
+            // Wheels
+            ctx.fillStyle = '#000';
+            ctx.fillRect(-25, -30, 8, 20);
+            ctx.fillRect(17, -30, 8, 20);
+            ctx.fillRect(-25, 15, 8, 20);
+            ctx.fillRect(17, 15, 8, 20);
+
+            if (isPlayer) {
+                // Headlights
+                ctx.fillStyle = '#ffff00';
+                ctx.fillRect(-15, -38, 10, 5);
+                ctx.fillRect(5, -38, 10, 5);
+            }
+
+            ctx.restore();
+        }
+
+        function spawnEnemy() {
+            const lane = Math.floor(Math.random() * 3);
+            const colors = ['#3498db', '#e74c3c', '#9b59b6', '#f39c12', '#1abc9c'];
+            enemies.push({
+                lane,
+                x: LANES[lane],
+                y: -50,
+                color: colors[Math.floor(Math.random() * colors.length)]
+            });
+        }
+
+        function changeLane(dir) {
+            const newLane = player.lane + dir;
+            if (newLane >= 0 && newLane <= 2) {
+                player.lane = newLane;
+            }
+        }
+
+        function update() {
+            // Smooth lane transition
+            const targetX = LANES[player.lane];
+            player.x += (targetX - player.x) * 0.2;
+
+            // Update enemies
+            enemies.forEach(e => {
+                e.y += speed;
+            });
+            enemies = enemies.filter(e => e.y < canvas.height + 50);
+
+            // Spawn enemies
+            if (Math.random() < 0.02 + score * 0.0001) {
+                spawnEnemy();
+            }
+
+            // Collision detection
+            enemies.forEach(e => {
+                if (Math.abs(e.x - player.x) < 35 && Math.abs(e.y - player.y) < 65) {
+                    gameOver();
+                }
+            });
+
+            // Score and speed
+            score++;
+            speed = 5 + Math.floor(score / 200);
+
+            document.getElementById('score').textContent = Math.floor(score / 10);
+            document.getElementById('speed').textContent = Math.floor(speed * 20);
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            const finalScore = Math.floor(score / 10);
+            if (finalScore > bestScore) {
+                bestScore = finalScore;
+                localStorage.setItem('racingBest', bestScore);
+            }
+            document.getElementById('finalScore').textContent = finalScore;
+            document.getElementById('bestScore').textContent = bestScore;
+            document.getElementById('gameover').classList.remove('hidden');
+        }
+
+        function startGame() {
+            player = { lane: 1, x: LANES[1], y: 500 };
+            enemies = [];
+            score = 0;
+            speed = 5;
+            gameRunning = true;
+
+            document.getElementById('start').classList.add('hidden');
+            document.getElementById('gameover').classList.add('hidden');
+
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawRoad();
+            enemies.forEach(e => drawCar(e.x, e.y, e.color, false));
+            drawCar(player.x, player.y, '#ff4444', true);
+            update();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') changeLane(-1);
+            if (e.key === 'ArrowRight' || e.key === 'd') changeLane(1);
+        });
+
+        document.getElementById('leftBtn').addEventListener('click', () => changeLane(-1));
+        document.getElementById('rightBtn').addEventListener('click', () => changeLane(1));
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

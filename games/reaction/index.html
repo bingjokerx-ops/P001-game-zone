@@ -1,0 +1,220 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>反应测试</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background: #2c3e50;
+            color: white;
+            transition: background 0.3s;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+        }
+
+        .game-area {
+            width: 500px;
+            height: 300px;
+            border-radius: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: background 0.3s;
+            font-size: 24px;
+            text-align: center;
+            padding: 20px;
+        }
+
+        .waiting {
+            background: #e74c3c;
+        }
+
+        .ready {
+            background: #3498db;
+        }
+
+        .go {
+            background: #2ecc71;
+        }
+
+        .result {
+            background: #9b59b6;
+        }
+
+        .game-area h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .stat {
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+            color: #2ecc71;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            margin-top: 5px;
+            opacity: 0.8;
+        }
+
+        .history {
+            margin-top: 20px;
+            display: flex;
+            gap: 10px;
+        }
+
+        .history-item {
+            padding: 8px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+            font-size: 14px;
+        }
+
+        .too-early {
+            color: #e74c3c;
+        }
+
+        .good {
+            color: #2ecc71;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>⚡ 反应测试</h1>
+    <div class="game-area waiting" id="gameArea" onclick="handleClick()">
+        <h2>🎯</h2>
+        <p>点击开始<br>看到绿色后立即点击!</p>
+    </div>
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value" id="bestTime">---</div>
+            <div class="stat-label">最佳</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="avgTime">---</div>
+            <div class="stat-label">平均</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="attempts">0</div>
+            <div class="stat-label">次数</div>
+        </div>
+    </div>
+    <div class="history" id="history"></div>
+
+    <script>
+        let state = 'waiting'; // waiting, ready, go, result
+        let startTime = 0;
+        let timeoutId = null;
+        let times = [];
+
+        const gameArea = document.getElementById('gameArea');
+
+        function handleClick() {
+            if (state === 'waiting' || state === 'result') {
+                startRound();
+            } else if (state === 'ready') {
+                tooEarly();
+            } else if (state === 'go') {
+                recordTime();
+            }
+        }
+
+        function startRound() {
+            state = 'ready';
+            gameArea.className = 'game-area ready';
+            gameArea.innerHTML = '<h2>⏳</h2><p>等待绿色...</p>';
+
+            const delay = 1000 + Math.random() * 4000;
+            timeoutId = setTimeout(() => {
+                state = 'go';
+                startTime = Date.now();
+                gameArea.className = 'game-area go';
+                gameArea.innerHTML = '<h2>点击!</h2><p>快!</p>';
+            }, delay);
+        }
+
+        function tooEarly() {
+            clearTimeout(timeoutId);
+            state = 'result';
+            gameArea.className = 'game-area waiting';
+            gameArea.innerHTML = '<h2>😅</h2><p>太早了!<br>点击重试</p>';
+            addHistory('太早', true);
+        }
+
+        function recordTime() {
+            const reactionTime = Date.now() - startTime;
+            times.push(reactionTime);
+            state = 'result';
+            gameArea.className = 'game-area result';
+
+            let feedback = '';
+            if (reactionTime < 200) feedback = '超神! 🚀';
+            else if (reactionTime < 300) feedback = '极快! ⚡';
+            else if (reactionTime < 400) feedback = '很快! 👍';
+            else if (reactionTime < 500) feedback = '不错! 😊';
+            else feedback = '继续加油! 💪';
+
+            gameArea.innerHTML = `<h2>${reactionTime} ms</h2><p>${feedback}<br>点击继续</p>`;
+
+            updateStats();
+            addHistory(reactionTime + 'ms', false);
+        }
+
+        function updateStats() {
+            if (times.length > 0) {
+                const best = Math.min(...times);
+                const avg = Math.round(times.reduce((a, b) => a + b) / times.length);
+                document.getElementById('bestTime').textContent = best + 'ms';
+                document.getElementById('avgTime').textContent = avg + 'ms';
+            }
+            document.getElementById('attempts').textContent = times.length;
+        }
+
+        function addHistory(text, isEarly) {
+            const history = document.getElementById('history');
+            const item = document.createElement('span');
+            item.className = 'history-item ' + (isEarly ? 'too-early' : 'good');
+            item.textContent = text;
+            history.insertBefore(item, history.firstChild);
+            if (history.children.length > 5) {
+                history.removeChild(history.lastChild);
+            }
+        }
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

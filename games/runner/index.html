@@ -1,0 +1,396 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>无尽跑酷</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #87CEEB;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .hud {
+            position: fixed;
+            top: 20px;
+            left: 50%;
+            transform: translateX(-50%);
+            display: flex;
+            gap: 30px;
+            background: rgba(0, 0, 0, 0.5);
+            padding: 10px 30px;
+            border-radius: 30px;
+            color: white;
+            font-size: 20px;
+            z-index: 100;
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            font-size: 20px;
+            background: #22c55e;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .controls {
+            position: fixed;
+            bottom: 30px;
+            display: flex;
+            gap: 20px;
+        }
+
+        .control-btn {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            border: none;
+            font-size: 30px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.9);
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hud">
+        <div>🏃 <span id="distance">0</span>m</div>
+        <div>⭐ <span id="coins">0</span></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div class="controls">
+        <button class="control-btn" id="jumpBtn">⬆️</button>
+        <button class="control-btn" id="slideBtn">⬇️</button>
+    </div>
+
+    <div id="start" class="overlay">
+        <h2>🏃 无尽跑酷</h2>
+        <p>跳跃躲避障碍，收集金币!</p>
+        <p>↑ 跳跃 | ↓ 滑行</p>
+        <button class="btn" onclick="startGame()">开始游戏</button>
+    </div>
+
+    <div id="gameover" class="overlay hidden">
+        <h2>游戏结束</h2>
+        <p>距离: <span id="finalDist">0</span>m</p>
+        <p>金币: <span id="finalCoins">0</span></p>
+        <p style="color:#ffd700;">最高: <span id="bestDist">0</span>m</p>
+        <button class="btn" onclick="startGame()">再来一次</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 800;
+        canvas.height = 400;
+
+        const GROUND = canvas.height - 60;
+        let player = { x: 100, y: GROUND, width: 40, height: 60, vy: 0, sliding: false };
+        let obstacles = [];
+        let coins = [];
+        let distance = 0;
+        let coinCount = 0;
+        let speed = 6;
+        let gameRunning = false;
+        let bestDistance = localStorage.getItem('runnerBest') || 0;
+
+        const gravity = 0.8;
+        const jumpForce = -15;
+
+        function drawBackground() {
+            // Sky gradient
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#87CEEB');
+            gradient.addColorStop(1, '#E0F6FF');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Ground
+            ctx.fillStyle = '#8B4513';
+            ctx.fillRect(0, GROUND + player.height, canvas.width, 60);
+
+            // Grass
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, GROUND + player.height - 10, canvas.width, 15);
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            if (player.sliding) {
+                // Sliding pose
+                ctx.fillStyle = '#FF6B6B';
+                ctx.fillRect(0, 30, 60, 30);
+                ctx.fillStyle = '#FFE66D';
+                ctx.beginPath();
+                ctx.arc(50, 35, 15, 0, Math.PI * 2);
+                ctx.fill();
+            } else {
+                // Standing pose
+                ctx.fillStyle = '#FF6B6B';
+                ctx.fillRect(10, 20, 20, 40);
+                ctx.fillStyle = '#FFE66D';
+                ctx.beginPath();
+                ctx.arc(20, 10, 15, 0, Math.PI * 2);
+                ctx.fill();
+                // Legs animation
+                const legOffset = Math.sin(distance * 0.3) * 10;
+                ctx.fillStyle = '#333';
+                ctx.fillRect(10, 55, 8, 15 + legOffset);
+                ctx.fillRect(22, 55, 8, 15 - legOffset);
+            }
+
+            ctx.restore();
+        }
+
+        function drawObstacles() {
+            obstacles.forEach(obs => {
+                if (obs.type === 'crate') {
+                    ctx.fillStyle = '#CD853F';
+                    ctx.fillRect(obs.x, obs.y, obs.width, obs.height);
+                    ctx.strokeStyle = '#8B4513';
+                    ctx.lineWidth = 3;
+                    ctx.strokeRect(obs.x, obs.y, obs.width, obs.height);
+                } else if (obs.type === 'bird') {
+                    ctx.fillStyle = '#4A90D9';
+                    ctx.beginPath();
+                    ctx.ellipse(obs.x + 20, obs.y + 15, 25, 15, 0, 0, Math.PI * 2);
+                    ctx.fill();
+                    // Wings
+                    const wingY = Math.sin(Date.now() * 0.02) * 5;
+                    ctx.beginPath();
+                    ctx.moveTo(obs.x + 10, obs.y + 15);
+                    ctx.lineTo(obs.x - 10, obs.y + wingY);
+                    ctx.lineTo(obs.x + 20, obs.y + 15);
+                    ctx.fill();
+                }
+            });
+        }
+
+        function drawCoins() {
+            coins.forEach(coin => {
+                ctx.fillStyle = '#FFD700';
+                ctx.beginPath();
+                ctx.arc(coin.x, coin.y, 15, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.fillStyle = '#FFA500';
+                ctx.font = 'bold 16px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('$', coin.x, coin.y + 5);
+            });
+        }
+
+        function spawnObstacle() {
+            const type = Math.random() > 0.5 ? 'crate' : 'bird';
+            if (type === 'crate') {
+                const height = 30 + Math.random() * 30;
+                obstacles.push({
+                    type: 'crate',
+                    x: canvas.width,
+                    y: GROUND + player.height - height,
+                    width: 40,
+                    height: height
+                });
+            } else {
+                obstacles.push({
+                    type: 'bird',
+                    x: canvas.width,
+                    y: GROUND - 20 - Math.random() * 40,
+                    width: 50,
+                    height: 30
+                });
+            }
+        }
+
+        function spawnCoin() {
+            coins.push({
+                x: canvas.width,
+                y: GROUND - 20 - Math.random() * 80
+            });
+        }
+
+        function jump() {
+            if (player.y >= GROUND && !player.sliding) {
+                player.vy = jumpForce;
+            }
+        }
+
+        function slide(start) {
+            if (player.y >= GROUND) {
+                player.sliding = start;
+                player.height = start ? 30 : 60;
+                if (start) player.y = GROUND + 30;
+                else player.y = GROUND;
+            }
+        }
+
+        function checkCollision(rect1, rect2) {
+            return rect1.x < rect2.x + rect2.width &&
+                rect1.x + rect1.width > rect2.x &&
+                rect1.y < rect2.y + rect2.height &&
+                rect1.y + rect1.height > rect2.y;
+        }
+
+        function update() {
+            // Player physics
+            player.vy += gravity;
+            player.y += player.vy;
+
+            if (player.y >= GROUND) {
+                player.y = GROUND;
+                player.vy = 0;
+            }
+
+            // Move obstacles
+            obstacles.forEach(obs => obs.x -= speed);
+            obstacles = obstacles.filter(obs => obs.x > -100);
+
+            // Move coins
+            coins.forEach(coin => coin.x -= speed);
+            coins = coins.filter(coin => coin.x > -30);
+
+            // Spawn
+            if (Math.random() < 0.02) spawnObstacle();
+            if (Math.random() < 0.03) spawnCoin();
+
+            // Collision with obstacles
+            const playerBox = {
+                x: player.x + 10,
+                y: player.y,
+                width: player.sliding ? 50 : 20,
+                height: player.height
+            };
+
+            for (const obs of obstacles) {
+                if (checkCollision(playerBox, obs)) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            // Collect coins
+            coins = coins.filter(coin => {
+                const dist = Math.hypot(coin.x - (player.x + 20), coin.y - (player.y + 30));
+                if (dist < 35) {
+                    coinCount++;
+                    return false;
+                }
+                return true;
+            });
+
+            // Update distance
+            distance += speed * 0.1;
+            speed = 6 + Math.floor(distance / 100) * 0.5;
+
+            document.getElementById('distance').textContent = Math.floor(distance);
+            document.getElementById('coins').textContent = coinCount;
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            const dist = Math.floor(distance);
+            if (dist > bestDistance) {
+                bestDistance = dist;
+                localStorage.setItem('runnerBest', bestDistance);
+            }
+            document.getElementById('finalDist').textContent = dist;
+            document.getElementById('finalCoins').textContent = coinCount;
+            document.getElementById('bestDist').textContent = bestDistance;
+            document.getElementById('gameover').classList.remove('hidden');
+            // 向父页面发送分数
+            window.parent.postMessage({ type: 'gameScore', score: dist, game: 'runner' }, '*');
+        }
+
+        function startGame() {
+            player = { x: 100, y: GROUND, width: 40, height: 60, vy: 0, sliding: false };
+            obstacles = [];
+            coins = [];
+            distance = 0;
+            coinCount = 0;
+            speed = 6;
+            gameRunning = true;
+
+            document.getElementById('start').classList.add('hidden');
+            document.getElementById('gameover').classList.add('hidden');
+
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            update();
+            drawBackground();
+            drawObstacles();
+            drawCoins();
+            drawPlayer();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowUp' || e.key === ' ') jump();
+            if (e.key === 'ArrowDown') slide(true);
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowDown') slide(false);
+        });
+
+        document.getElementById('jumpBtn').addEventListener('touchstart', (e) => { e.preventDefault(); jump(); });
+        document.getElementById('slideBtn').addEventListener('touchstart', (e) => { e.preventDefault(); slide(true); });
+        document.getElementById('slideBtn').addEventListener('touchend', (e) => { e.preventDefault(); slide(false); });
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

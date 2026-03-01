@@ -1,0 +1,280 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>打字练习</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Courier New', monospace;
+            color: white;
+        }
+
+        h1 {
+            margin-bottom: 30px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 15px 25px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            color: #4ade80;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #888;
+            margin-top: 5px;
+        }
+
+        .word-display {
+            font-size: 48px;
+            letter-spacing: 5px;
+            margin-bottom: 30px;
+            padding: 20px 40px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+        }
+
+        .word-display .correct {
+            color: #4ade80;
+        }
+
+        .word-display .wrong {
+            color: #ef4444;
+            background: rgba(239, 68, 68, 0.3);
+        }
+
+        .word-display .current {
+            border-bottom: 3px solid #4ade80;
+        }
+
+        #input {
+            font-size: 24px;
+            padding: 15px 30px;
+            border: none;
+            border-radius: 10px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #1a1a2e;
+            text-align: center;
+            outline: none;
+            width: 300px;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 36px;
+            margin-bottom: 20px;
+        }
+
+        .final-stats {
+            font-size: 24px;
+            margin: 10px 0;
+            color: #4ade80;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 18px;
+            background: #4ade80;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+
+<body>
+    <h1>⌨️ 打字练习</h1>
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value" id="wpm">0</div>
+            <div class="stat-label">WPM</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="accuracy">100%</div>
+            <div class="stat-label">准确率</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="timer">60</div>
+            <div class="stat-label">秒</div>
+        </div>
+    </div>
+    <div class="word-display" id="word"></div>
+    <input type="text" id="input" placeholder="开始输入..." autofocus>
+
+    <div id="result" class="overlay hidden">
+        <h2>🎉 时间到!</h2>
+        <div class="final-stats">WPM: <span id="finalWpm">0</span></div>
+        <div class="final-stats">准确率: <span id="finalAcc">0</span>%</div>
+        <div class="final-stats">正确单词: <span id="correctWords">0</span></div>
+        <button class="btn" onclick="startGame()">再来一次</button>
+    </div>
+
+    <script>
+        const words = ['apple', 'banana', 'orange', 'computer', 'keyboard', 'mouse', 'screen', 'window', 'table', 'chair', 'water', 'coffee', 'phone', 'music', 'video', 'game', 'player', 'score', 'level', 'power', 'speed', 'jump', 'run', 'walk', 'fly', 'swim', 'dance', 'sing', 'read', 'write', 'code', 'debug', 'test', 'build', 'ship', 'car', 'bike', 'train', 'plane', 'boat', 'house', 'tree', 'flower', 'sun', 'moon', 'star', 'cloud', 'rain', 'snow', 'wind'];
+
+        let currentWord = '';
+        let typedChars = 0;
+        let correctChars = 0;
+        let totalChars = 0;
+        let correctWords = 0;
+        let timeLeft = 60;
+        let timer = null;
+        let gameStarted = false;
+
+        function getRandomWord() {
+            return words[Math.floor(Math.random() * words.length)];
+        }
+
+        function displayWord() {
+            currentWord = getRandomWord();
+            document.getElementById('word').innerHTML = currentWord.split('').map((char, i) =>
+                `<span class="${i === 0 ? 'current' : ''}">${char}</span>`
+            ).join('');
+        }
+
+        function startGame() {
+            typedChars = 0;
+            correctChars = 0;
+            totalChars = 0;
+            correctWords = 0;
+            timeLeft = 60;
+            gameStarted = false;
+            document.getElementById('result').classList.add('hidden');
+            document.getElementById('input').value = '';
+            document.getElementById('input').focus();
+            document.getElementById('timer').textContent = timeLeft;
+            document.getElementById('wpm').textContent = '0';
+            document.getElementById('accuracy').textContent = '100%';
+            displayWord();
+            if (timer) clearInterval(timer);
+        }
+
+        function startTimer() {
+            timer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = timeLeft;
+                updateWPM();
+                if (timeLeft <= 0) {
+                    endGame();
+                }
+            }, 1000);
+        }
+
+        function updateWPM() {
+            const elapsed = 60 - timeLeft;
+            if (elapsed > 0) {
+                const wpm = Math.round((correctChars / 5) / (elapsed / 60));
+                document.getElementById('wpm').textContent = wpm;
+            }
+        }
+
+        function updateAccuracy() {
+            if (totalChars > 0) {
+                const acc = Math.round((correctChars / totalChars) * 100);
+                document.getElementById('accuracy').textContent = acc + '%';
+            }
+        }
+
+        function endGame() {
+            clearInterval(timer);
+            const wpm = Math.round((correctChars / 5) / 1);
+            const acc = totalChars > 0 ? Math.round((correctChars / totalChars) * 100) : 100;
+            document.getElementById('finalWpm').textContent = wpm;
+            document.getElementById('finalAcc').textContent = acc;
+            document.getElementById('correctWords').textContent = correctWords;
+            document.getElementById('result').classList.remove('hidden');
+        }
+
+        document.getElementById('input').addEventListener('input', (e) => {
+            if (!gameStarted) {
+                gameStarted = true;
+                startTimer();
+            }
+
+            const typed = e.target.value;
+            const wordSpans = document.getElementById('word').querySelectorAll('span');
+
+            wordSpans.forEach((span, i) => {
+                span.className = '';
+                if (i < typed.length) {
+                    if (typed[i] === currentWord[i]) {
+                        span.className = 'correct';
+                    } else {
+                        span.className = 'wrong';
+                    }
+                } else if (i === typed.length) {
+                    span.className = 'current';
+                }
+            });
+
+            if (typed === currentWord) {
+                correctWords++;
+                correctChars += currentWord.length;
+                totalChars += currentWord.length;
+                e.target.value = '';
+                displayWord();
+                updateAccuracy();
+            } else if (typed.length === currentWord.length) {
+                totalChars += typed.length;
+                for (let i = 0; i < typed.length; i++) {
+                    if (typed[i] === currentWord[i]) correctChars++;
+                }
+                e.target.value = '';
+                displayWord();
+                updateAccuracy();
+            }
+        });
+
+        startGame();
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

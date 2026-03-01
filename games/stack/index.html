@@ -1,0 +1,342 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>堆叠高塔</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .hud {
+            position: fixed;
+            top: 20px;
+            display: flex;
+            gap: 40px;
+            color: white;
+            font-size: 28px;
+            font-weight: bold;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+            z-index: 100;
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            z-index: 200;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            font-size: 20px;
+            background: #ff6b6b;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hud">
+        <div>🏗️ <span id="score">0</span></div>
+        <div style="color:#ffd93d;">🏆 <span id="best">0</span></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="start" class="overlay">
+        <h2>🏗️ 堆叠高塔</h2>
+        <p>点击或按空格放置方块</p>
+        <p>对准下方堆叠!</p>
+        <button class="btn" onclick="startGame()">开始游戏</button>
+    </div>
+
+    <div id="gameover" class="overlay hidden">
+        <h2>游戏结束</h2>
+        <p>高度: <span id="finalScore">0</span> 层</p>
+        <button class="btn" onclick="startGame()">再来一次</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 400;
+        canvas.height = 600;
+
+        const BLOCK_HEIGHT = 30;
+        let blocks = [];
+        let currentBlock = null;
+        let fallingBlocks = [];
+        let score = 0;
+        let gameRunning = false;
+        let best = localStorage.getItem('stackBest') || 0;
+        document.getElementById('best').textContent = best;
+
+        const colors = [
+            '#ff6b6b', '#ffd93d', '#6bcb77', '#4ecdc4',
+            '#45b7d1', '#96ceb4', '#ffeaa7', '#dfe6e9'
+        ];
+
+        function initGame() {
+            blocks = [];
+            fallingBlocks = [];
+            score = 0;
+
+            // Base block
+            blocks.push({
+                x: canvas.width / 2 - 100,
+                width: 200,
+                y: canvas.height - BLOCK_HEIGHT,
+                color: colors[0]
+            });
+
+            spawnBlock();
+        }
+
+        function spawnBlock() {
+            const lastBlock = blocks[blocks.length - 1];
+            const direction = blocks.length % 2 === 0 ? 1 : -1;
+
+            currentBlock = {
+                x: direction > 0 ? -lastBlock.width : canvas.width,
+                width: lastBlock.width,
+                y: lastBlock.y - BLOCK_HEIGHT,
+                vx: direction * (3 + score * 0.1),
+                color: colors[score % colors.length]
+            };
+        }
+
+        function placeBlock() {
+            if (!currentBlock || !gameRunning) return;
+
+            const lastBlock = blocks[blocks.length - 1];
+
+            // Calculate overlap
+            const overlapStart = Math.max(currentBlock.x, lastBlock.x);
+            const overlapEnd = Math.min(currentBlock.x + currentBlock.width, lastBlock.x + lastBlock.width);
+            const overlapWidth = overlapEnd - overlapStart;
+
+            if (overlapWidth <= 0) {
+                // Complete miss
+                fallingBlocks.push({ ...currentBlock, vy: 0 });
+                gameOver();
+                return;
+            }
+
+            // Perfect placement bonus
+            const isPerfect = Math.abs(overlapWidth - lastBlock.width) < 5;
+
+            // Create falling piece(s)
+            if (!isPerfect) {
+                if (currentBlock.x < lastBlock.x) {
+                    // Left piece falls
+                    fallingBlocks.push({
+                        x: currentBlock.x,
+                        width: lastBlock.x - currentBlock.x,
+                        y: currentBlock.y,
+                        vy: 0,
+                        color: currentBlock.color
+                    });
+                }
+                if (currentBlock.x + currentBlock.width > lastBlock.x + lastBlock.width) {
+                    // Right piece falls
+                    fallingBlocks.push({
+                        x: lastBlock.x + lastBlock.width,
+                        width: (currentBlock.x + currentBlock.width) - (lastBlock.x + lastBlock.width),
+                        y: currentBlock.y,
+                        vy: 0,
+                        color: currentBlock.color
+                    });
+                }
+            }
+
+            // Place the overlapping block
+            const newBlock = {
+                x: overlapStart,
+                width: isPerfect ? lastBlock.width : overlapWidth,
+                y: currentBlock.y,
+                color: currentBlock.color
+            };
+            blocks.push(newBlock);
+
+            score++;
+            document.getElementById('score').textContent = score;
+
+            // Camera scroll effect
+            if (blocks.length > 10) {
+                blocks.forEach(b => b.y += BLOCK_HEIGHT);
+                fallingBlocks.forEach(b => b.y += BLOCK_HEIGHT);
+            }
+
+            // Check if block too small
+            if (newBlock.width < 10) {
+                gameOver();
+                return;
+            }
+
+            spawnBlock();
+        }
+
+        function drawBlocks() {
+            // Draw placed blocks
+            blocks.forEach((block, i) => {
+                const gradient = ctx.createLinearGradient(block.x, block.y, block.x, block.y + BLOCK_HEIGHT);
+                gradient.addColorStop(0, block.color);
+                gradient.addColorStop(1, shadeColor(block.color, -20));
+
+                ctx.fillStyle = gradient;
+                ctx.fillRect(block.x, block.y, block.width, BLOCK_HEIGHT);
+
+                // Highlight
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fillRect(block.x, block.y, block.width, 5);
+
+                // Shadow
+                ctx.fillStyle = 'rgba(0,0,0,0.2)';
+                ctx.fillRect(block.x, block.y + BLOCK_HEIGHT - 3, block.width, 3);
+            });
+
+            // Draw current block
+            if (currentBlock) {
+                ctx.fillStyle = currentBlock.color;
+                ctx.fillRect(currentBlock.x, currentBlock.y, currentBlock.width, BLOCK_HEIGHT);
+
+                // Highlight
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fillRect(currentBlock.x, currentBlock.y, currentBlock.width, 5);
+            }
+
+            // Draw falling blocks
+            fallingBlocks.forEach(block => {
+                ctx.fillStyle = block.color;
+                ctx.globalAlpha = 0.7;
+                ctx.fillRect(block.x, block.y, block.width, BLOCK_HEIGHT);
+                ctx.globalAlpha = 1;
+            });
+        }
+
+        function shadeColor(color, percent) {
+            const num = parseInt(color.replace('#', ''), 16);
+            const amt = Math.round(2.55 * percent);
+            const R = Math.max(0, Math.min(255, (num >> 16) + amt));
+            const G = Math.max(0, Math.min(255, ((num >> 8) & 0x00FF) + amt));
+            const B = Math.max(0, Math.min(255, (num & 0x0000FF) + amt));
+            return '#' + (0x1000000 + R * 0x10000 + G * 0x100 + B).toString(16).slice(1);
+        }
+
+        function update() {
+            if (currentBlock) {
+                currentBlock.x += currentBlock.vx;
+
+                // Bounce off walls
+                if (currentBlock.x < -currentBlock.width) currentBlock.vx = Math.abs(currentBlock.vx);
+                if (currentBlock.x > canvas.width) currentBlock.vx = -Math.abs(currentBlock.vx);
+            }
+
+            // Update falling blocks
+            fallingBlocks.forEach(block => {
+                block.vy += 0.5;
+                block.y += block.vy;
+            });
+            fallingBlocks = fallingBlocks.filter(b => b.y < canvas.height + 50);
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            if (score > best) {
+                best = score;
+                localStorage.setItem('stackBest', best);
+                document.getElementById('best').textContent = best;
+            }
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameover').classList.remove('hidden');
+            // 向父页面发送分数
+            window.parent.postMessage({ type: 'gameScore', score: score, game: 'stack' }, '*');
+        }
+
+        function startGame() {
+            gameRunning = true;
+            document.getElementById('score').textContent = '0';
+            document.getElementById('start').classList.add('hidden');
+            document.getElementById('gameover').classList.add('hidden');
+
+            initGame();
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            // Background gradient
+            const bgGradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            bgGradient.addColorStop(0, '#667eea');
+            bgGradient.addColorStop(1, '#764ba2');
+            ctx.fillStyle = bgGradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            update();
+            drawBlocks();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('click', placeBlock);
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                placeBlock();
+            }
+        });
+
+        canvas.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            placeBlock();
+        });
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

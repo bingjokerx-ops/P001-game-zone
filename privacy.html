@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>隐私政策 - GameZone</title>
+    <meta name="description" content="GameZone 隐私政策 - 了解我们如何保护您的隐私">
+    <link rel="stylesheet" href="css/style.css">
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('gamezone-theme');
+            const savedColor = localStorage.getItem('gamezone-color');
+            if (savedColor) {
+                document.documentElement.style.setProperty('--primary-color', savedColor);
+                const hex = savedColor.replace('#', '');
+                const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 20);
+                const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 20);
+                const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 20);
+                const hoverColor = '#' + r.toString(16).padStart(2, '0') + g.toString(16).padStart(2, '0') + b.toString(16).padStart(2, '0');
+                document.documentElement.style.setProperty('--primary-hover', hoverColor);
+            }
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        .page-content {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 40px 20px 60px;
+        }
+
+        .page-content h1 {
+            font-size: 32px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: var(--text-primary);
+        }
+
+        .page-subtitle {
+            font-size: 14px;
+            color: var(--text-secondary);
+            margin-bottom: 40px;
+        }
+
+        .page-content h2 {
+            font-size: 20px;
+            font-weight: 600;
+            margin-top: 36px;
+            margin-bottom: 16px;
+            color: var(--text-primary);
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .page-content p,
+        .page-content li {
+            font-size: 15px;
+            line-height: 1.8;
+            color: var(--text-secondary);
+            margin-bottom: 12px;
+        }
+
+        .page-content ul {
+            padding-left: 24px;
+            margin-bottom: 16px;
+        }
+
+        .page-content li {
+            margin-bottom: 6px;
+        }
+
+        .page-content a {
+            color: var(--primary-color);
+            text-decoration: underline;
+        }
+
+        .page-content a:hover {
+            text-decoration: none;
+        }
+
+        .lang-switch {
+            display: inline-flex;
+            gap: 8px;
+            margin-bottom: 24px;
+        }
+
+        .lang-switch button {
+            padding: 6px 14px;
+            font-size: 13px;
+            font-weight: 500;
+            border-radius: 20px;
+            background: var(--bg-color);
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .lang-switch button.active {
+            background: var(--primary-color);
+            border-color: var(--primary-color);
+            color: white;
+        }
+
+        .lang-section {
+            display: none;
+        }
+
+        .lang-section.active {
+            display: block;
+        }
+    </style>
+</head>
+
+<body>
+    <!-- 头部导航 -->
+    <header class="header">
+        <div class="container">
+            <a href="index.html" class="logo">
+                <span class="logo-icon">🎮</span>
+                <span class="logo-text">GameZone</span>
+            </a>
+            <a href="index.html" class="back-btn" style="padding:8px 16px;font-size:14px;font-weight:500;color:var(--text-secondary);background:var(--bg-color);border-radius:8px;transition:all 0.2s;margin-left:auto;">← 返回首页</a>
+        </div>
+    </header>
+
+    <div class="page-content">
+        <h1>🔒 隐私政策 / Privacy Policy</h1>
+        <p class="page-subtitle">最后更新：2026 年 2 月 | Last Updated: February 2026</p>
+
+        <div class="lang-switch">
+            <button class="active" onclick="switchLang('zh')">🇨🇳 中文</button>
+            <button onclick="switchLang('en')">🇺🇸 English</button>
+        </div>
+
+        <!-- 中文版 -->
+        <div class="lang-section active" id="lang-zh">
+            <h2>1. 信息收集</h2>
+            <p>GameZone 是一个纯前端的在线游戏平台。我们<strong>不收集任何个人身份信息</strong>，不要求注册或登录。</p>
+            <p>为了提升您的使用体验，我们使用浏览器的本地存储（localStorage）保存以下信息：</p>
+            <ul>
+                <li>您设置的昵称和头像（随机生成，可自定义）</li>
+                <li>主题颜色和语言偏好</li>
+                <li>游戏收藏列表和最近玩过的游戏</li>
+                <li>游戏排行榜分数和评论内容</li>
+                <li>游戏录像数据（存储在浏览器 IndexedDB 中）</li>
+            </ul>
+            <p>以上数据完全保存在您的浏览器中，我们无法访问也不会传输到任何服务器。清除浏览器缓存将删除所有数据。</p>
+
+            <h2>2. Cookie 使用</h2>
+            <p>本站不使用 Cookie。所有偏好设置通过 localStorage 存储在您的设备上。</p>
+
+            <h2>3. 第三方服务</h2>
+            <p>本站使用以下第三方服务：</p>
+            <ul>
+                <li><strong>Google Fonts</strong>：用于加载 Inter 字体，请参阅 <a href="https://policies.google.com/privacy" target="_blank">Google 隐私政策</a></li>
+            </ul>
+
+            <h2>4. 儿童隐私</h2>
+            <p>本站游戏适合所有年龄段。我们不会有意收集 13 岁以下儿童的个人信息。</p>
+
+            <h2>5. 政策变更</h2>
+            <p>我们可能会不时更新本隐私政策。更新后的政策将在本页面发布，并更新"最后更新"日期。</p>
+
+            <h2>6. 联系我们</h2>
+            <p>如果您对本隐私政策有任何疑问，请通过 <a href="about.html#contact">联系我们</a> 页面与我们联系。</p>
+        </div>
+
+        <!-- English Version -->
+        <div class="lang-section" id="lang-en">
+            <h2>1. Information Collection</h2>
+            <p>GameZone is a purely front-end online gaming platform. We <strong>do not collect any personally identifiable information</strong> and do not require registration or login.</p>
+            <p>To enhance your experience, we use your browser's local storage (localStorage) to save the following:</p>
+            <ul>
+                <li>Your nickname and avatar (randomly generated, customizable)</li>
+                <li>Theme color and language preferences</li>
+                <li>Game favorites and recently played games</li>
+                <li>Leaderboard scores and comments</li>
+                <li>Game recordings (stored in browser IndexedDB)</li>
+            </ul>
+            <p>All data is stored entirely in your browser. We cannot access it, and it is never transmitted to any server. Clearing your browser cache will delete all data.</p>
+
+            <h2>2. Cookies</h2>
+            <p>This site does not use cookies. All preferences are stored via localStorage on your device.</p>
+
+            <h2>3. Third-Party Services</h2>
+            <p>This site uses the following third-party services:</p>
+            <ul>
+                <li><strong>Google Fonts</strong>: Used to load the Inter font. See <a href="https://policies.google.com/privacy" target="_blank">Google's Privacy Policy</a></li>
+            </ul>
+
+            <h2>4. Children's Privacy</h2>
+            <p>Our games are suitable for all ages. We do not knowingly collect personal information from children under 13.</p>
+
+            <h2>5. Policy Changes</h2>
+            <p>We may update this privacy policy from time to time. Updated policies will be posted on this page with a revised "Last Updated" date.</p>
+
+            <h2>6. Contact Us</h2>
+            <p>If you have any questions about this privacy policy, please reach out via our <a href="about.html#contact">Contact Us</a> page.</p>
+        </div>
+    </div>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <p>&copy; 2026 GameZone - 免费在线游戏平台</p>
+            <div class="footer-links">
+                <a href="about.html">关于我们</a>
+                <a href="privacy.html">隐私政策</a>
+                <a href="about.html#contact">联系我们</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        function switchLang(lang) {
+            document.querySelectorAll('.lang-section').forEach(s => s.classList.remove('active'));
+            document.getElementById('lang-' + lang).classList.add('active');
+            document.querySelectorAll('.lang-switch button').forEach(b => b.classList.remove('active'));
+            event.target.classList.add('active');
+        }
+    </script>
+</body>
+
+</html>

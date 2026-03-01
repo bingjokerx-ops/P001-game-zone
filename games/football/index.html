@@ -1,0 +1,373 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>点球大战</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #87CEEB 0%, #98FB98 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .score-board {
+            margin-top: 20px;
+            display: flex;
+            gap: 30px;
+            background: rgba(0, 0, 0, 0.7);
+            padding: 15px 40px;
+            border-radius: 10px;
+            color: white;
+            font-size: 24px;
+        }
+
+        .score-board .goals {
+            color: #22c55e;
+        }
+
+        .score-board .misses {
+            color: #ef4444;
+        }
+
+        #gameCanvas {
+            display: block;
+            margin-top: 20px;
+            cursor: crosshair;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            font-size: 20px;
+            background: #22c55e;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .message {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 64px;
+            font-weight: bold;
+            pointer-events: none;
+            text-shadow: 3px 3px 6px rgba(0, 0, 0, 0.5);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .message.show {
+            opacity: 1;
+        }
+
+        .message.goal {
+            color: #22c55e;
+        }
+
+        .message.miss {
+            color: #ef4444;
+        }
+
+        .message.save {
+            color: #3b82f6;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="score-board">
+        <div>球: <span id="round">1</span>/5</div>
+        <div class="goals">进球: <span id="goals">0</span></div>
+        <div class="misses">失误: <span id="misses">0</span></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div class="message" id="message"></div>
+
+    <div id="start" class="overlay">
+        <h2>⚽ 点球大战</h2>
+        <p>点击球门方向射门!</p>
+        <p>守门员会尝试扑救</p>
+        <button class="btn" onclick="startGame()">开始游戏</button>
+    </div>
+
+    <div id="result" class="overlay hidden">
+        <h2 id="resultTitle">比赛结束!</h2>
+        <p>进球: <span id="finalGoals">0</span> / 5</p>
+        <button class="btn" onclick="startGame()">再来一次</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 600;
+        canvas.height = 400;
+
+        let goals = 0;
+        let misses = 0;
+        let round = 1;
+        let gameState = 'ready'; // ready, shooting, result
+        let ball = { x: 300, y: 350, targetX: 300, targetY: 100 };
+        let keeper = { x: 300, y: 120, targetX: 300, width: 60, height: 80 };
+        let animProgress = 0;
+
+        function drawField() {
+            // Grass
+            ctx.fillStyle = '#228B22';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Goal
+            ctx.strokeStyle = '#fff';
+            ctx.lineWidth = 8;
+            ctx.strokeRect(150, 50, 300, 150);
+
+            // Goal net (pattern)
+            ctx.strokeStyle = 'rgba(255,255,255,0.3)';
+            ctx.lineWidth = 1;
+            for (let x = 160; x < 450; x += 20) {
+                ctx.beginPath();
+                ctx.moveTo(x, 50);
+                ctx.lineTo(x, 200);
+                ctx.stroke();
+            }
+            for (let y = 60; y < 200; y += 20) {
+                ctx.beginPath();
+                ctx.moveTo(150, y);
+                ctx.lineTo(450, y);
+                ctx.stroke();
+            }
+
+            // Penalty spot
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(300, 350, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawKeeper() {
+            const kx = keeper.x + (keeper.targetX - keeper.x) * animProgress;
+
+            ctx.save();
+            ctx.translate(kx, keeper.y);
+
+            // Body
+            ctx.fillStyle = '#ffd700';
+            ctx.fillRect(-20, -30, 40, 50);
+
+            // Head
+            ctx.fillStyle = '#ffdbac';
+            ctx.beginPath();
+            ctx.arc(0, -40, 15, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Arms spread
+            ctx.fillStyle = '#ffd700';
+            const armSpread = animProgress * 40;
+            ctx.fillRect(-30 - armSpread, -25, 20, 10);
+            ctx.fillRect(10 + armSpread, -25, 20, 10);
+
+            // Legs
+            ctx.fillStyle = '#333';
+            ctx.fillRect(-15, 20, 12, 25);
+            ctx.fillRect(3, 20, 12, 25);
+
+            // Gloves
+            ctx.fillStyle = '#ff6600';
+            ctx.beginPath();
+            ctx.arc(-35 - armSpread, -20, 10, 0, Math.PI * 2);
+            ctx.arc(35 + armSpread, -20, 10, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawBall() {
+            let bx = ball.x;
+            let by = ball.y;
+            let size = 20;
+
+            if (gameState === 'shooting') {
+                bx = ball.x + (ball.targetX - ball.x) * animProgress;
+                by = ball.y + (ball.targetY - ball.y) * animProgress;
+                size = 20 - animProgress * 8; // Ball gets smaller as it goes away
+            }
+
+            ctx.fillStyle = '#fff';
+            ctx.beginPath();
+            ctx.arc(bx, by, size, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Ball pattern
+            ctx.strokeStyle = '#000';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.arc(bx, by, size, 0, Math.PI * 2);
+            ctx.stroke();
+        }
+
+        function showMessage(text, type) {
+            const msg = document.getElementById('message');
+            msg.textContent = text;
+            msg.className = 'message show ' + type;
+            setTimeout(() => msg.classList.remove('show'), 1500);
+        }
+
+        function shoot(x, y) {
+            if (gameState !== 'ready') return;
+
+            // Determine target (clamp to goal area)
+            ball.targetX = Math.max(170, Math.min(430, x));
+            ball.targetY = Math.max(70, Math.min(180, y));
+
+            // Keeper dives randomly left, right, or stays middle
+            const keeperChoice = Math.random();
+            if (keeperChoice < 0.33) keeper.targetX = 200;
+            else if (keeperChoice < 0.66) keeper.targetX = 400;
+            else keeper.targetX = 300;
+
+            gameState = 'shooting';
+            animProgress = 0;
+            animateShot();
+        }
+
+        function animateShot() {
+            animProgress += 0.05;
+
+            if (animProgress >= 1) {
+                // Check if goal or save
+                const ballFinalX = ball.targetX;
+                const keeperFinalX = keeper.targetX;
+
+                // Check if ball is in goal area
+                const inGoal = ballFinalX > 160 && ballFinalX < 440;
+
+                // Check if keeper saves (within range)
+                const saved = Math.abs(ballFinalX - keeperFinalX) < 60;
+
+                if (!inGoal) {
+                    misses++;
+                    showMessage('打偏了!', 'miss');
+                } else if (saved) {
+                    misses++;
+                    showMessage('扑出!', 'save');
+                } else {
+                    goals++;
+                    showMessage('进球!', 'goal');
+                }
+
+                updateScore();
+
+                setTimeout(() => {
+                    if (round >= 5) {
+                        endGame();
+                    } else {
+                        round++;
+                        resetRound();
+                    }
+                }, 1500);
+
+                return;
+            }
+
+            render();
+            requestAnimationFrame(animateShot);
+        }
+
+        function resetRound() {
+            ball = { x: 300, y: 350, targetX: 300, targetY: 100 };
+            keeper = { x: 300, y: 120, targetX: 300, width: 60, height: 80 };
+            animProgress = 0;
+            gameState = 'ready';
+            document.getElementById('round').textContent = round;
+            render();
+        }
+
+        function updateScore() {
+            document.getElementById('goals').textContent = goals;
+            document.getElementById('misses').textContent = misses;
+        }
+
+        function endGame() {
+            gameState = 'ended';
+            const title = document.getElementById('resultTitle');
+            if (goals >= 4) title.textContent = '🏆 帽子戏法!';
+            else if (goals >= 3) title.textContent = '👏 表现出色!';
+            else if (goals >= 2) title.textContent = '😊 不错!';
+            else title.textContent = '😅 再接再厉!';
+
+            document.getElementById('finalGoals').textContent = goals;
+            document.getElementById('result').classList.remove('hidden');
+        }
+
+        function startGame() {
+            goals = 0;
+            misses = 0;
+            round = 1;
+
+            document.getElementById('start').classList.add('hidden');
+            document.getElementById('result').classList.add('hidden');
+
+            updateScore();
+            resetRound();
+        }
+
+        function render() {
+            drawField();
+            drawKeeper();
+            drawBall();
+        }
+
+        canvas.addEventListener('click', (e) => {
+            const rect = canvas.getBoundingClientRect();
+            const x = e.clientX - rect.left;
+            const y = e.clientY - rect.top;
+            shoot(x, y);
+        });
+
+        render();
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

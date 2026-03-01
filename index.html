@@ -1,0 +1,301 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GameZone - 免费在线游戏</title>
+    <meta name="description" content="免费在线游戏平台,无需下载,即点即玩!">
+    <link rel="stylesheet" href="css/style.css">
+    <!-- 防止主题闪烁：在CSS加载后立即应用保存的主题 -->
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('gamezone-theme');
+            const savedColor = localStorage.getItem('gamezone-color');
+            if (savedColor) {
+                document.documentElement.style.setProperty('--primary-color', savedColor);
+                // 计算hover色
+                const hex = savedColor.replace('#', '');
+                const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 20);
+                const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 20);
+                const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 20);
+                const hoverColor = '#' + r.toString(16).padStart(2, '0') + g.toString(16).padStart(2, '0') + b.toString(16).padStart(2, '0');
+                document.documentElement.style.setProperty('--primary-hover', hoverColor);
+            }
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- 顶部导航容器（用于hover控制） -->
+    <div class="top-nav-wrapper">
+        <!-- 头部导航 -->
+        <header class="header">
+            <div class="container">
+                <a href="index.html" class="logo">
+                    <span class="logo-icon">🎮</span>
+                    <span class="logo-text">GameZone</span>
+                </a>
+                <div class="search-box">
+                    <input type="text" id="search-input" placeholder="搜索游戏..." autocomplete="off">
+                    <button class="search-btn">🔍</button>
+                </div>
+                <nav class="nav-links">
+                    <a href="#" class="nav-link active" data-sort="default" data-i18n="nav.all">全部</a>
+                    <a href="#" class="nav-link" data-sort="hot" data-i18n="nav.hot">热门</a>
+                    <a href="#" class="nav-link" data-sort="recent" data-i18n="nav.new">最新</a>
+                    <a href="#" class="nav-link" data-sort="history">🕐 <span data-i18n="nav.recent">最近玩过</span></a>
+                    <a href="#" class="nav-link" data-sort="favorites">❤️ <span data-i18n="nav.favorites">收藏</span></a>
+                </nav>
+                <!-- 设置区域 -->
+                <div class="settings-area">
+                    <!-- 主题切换 -->
+                    <div class="setting-dropdown" id="theme-dropdown">
+                        <button class="setting-btn" id="theme-btn" title="主题">🎨</button>
+                        <div class="dropdown-menu theme-menu">
+                            <div class="dropdown-title" data-i18n="settings.theme">主题颜色</div>
+                            <div class="theme-presets">
+                                <button class="theme-preset" data-theme="purple" style="--preset-color: #6366f1"
+                                    title="紫罗兰"></button>
+                                <button class="theme-preset" data-theme="blue" style="--preset-color: #3b82f6"
+                                    title="海洋蓝"></button>
+                                <button class="theme-preset" data-theme="green" style="--preset-color: #10b981"
+                                    title="翡翠绿"></button>
+                                <button class="theme-preset" data-theme="orange" style="--preset-color: #f59e0b"
+                                    title="暖阳橙"></button>
+                                <button class="theme-preset" data-theme="pink" style="--preset-color: #ec4899"
+                                    title="樱花粉"></button>
+                                <button class="theme-preset" data-theme="dark" style="--preset-color: #1e293b"
+                                    title="暗夜黑"></button>
+                            </div>
+                            <div class="custom-color">
+                                <label data-i18n="settings.custom">自定义</label>
+                                <input type="color" id="custom-color" value="#6366f1">
+                            </div>
+                        </div>
+                    </div>
+                    <!-- 语言切换 -->
+                    <div class="setting-dropdown" id="lang-dropdown">
+                        <button class="setting-btn" id="lang-btn" title="语言">🌐</button>
+                        <div class="dropdown-menu lang-menu">
+                            <div class="dropdown-title" data-i18n="settings.language">语言</div>
+                            <button class="lang-option active" data-lang="zh">🇨🇳 中文</button>
+                            <button class="lang-option" data-lang="en">🇺🇸 English</button>
+                            <button class="lang-option" data-lang="ja">🇯🇵 日本語</button>
+                        </div>
+                    </div>
+                    <!-- 我的 - 主页板块 -->
+                    <div class="setting-dropdown profile-dropdown" id="profile-dropdown">
+                        <button class="setting-btn" id="my-btn" title="我的">👤</button>
+                        <div class="profile-panel" id="profile-panel">
+                            <!-- 左侧导航 -->
+                            <div class="profile-sidebar">
+                                <button class="profile-nav-item active" data-section="account">
+                                    <span class="nav-icon">👤</span>
+                                    <span class="nav-text">账户</span>
+                                </button>
+                                <button class="profile-nav-item" data-section="submissions">
+                                    <span class="nav-icon">📝</span>
+                                    <span class="nav-text">提交记录</span>
+                                </button>
+                                <button class="profile-nav-item" data-section="stats">
+                                    <span class="nav-icon">📊</span>
+                                    <span class="nav-text">游戏统计</span>
+                                </button>
+                                <button class="profile-nav-item" data-section="game-settings">
+                                    <span class="nav-icon">🎮</span>
+                                    <span class="nav-text">游戏设置</span>
+                                </button>
+                            </div>
+                            <!-- 右侧内容区 -->
+                            <div class="profile-content">
+                                <!-- 账户设置 -->
+                                <div class="profile-section active" id="section-account">
+                                    <h3 class="section-title">账户设置</h3>
+                                    <div class="form-group">
+                                        <label>昵称</label>
+                                        <input type="text" id="profile-nickname" placeholder="设置你的昵称" maxlength="20">
+                                    </div>
+                                    <div class="form-group">
+                                        <label>头像</label>
+                                        <div class="avatar-picker">
+                                            <span class="avatar-option selected" data-avatar="👤">👤</span>
+                                            <span class="avatar-option" data-avatar="😎">😎</span>
+                                            <span class="avatar-option" data-avatar="🎮">🎮</span>
+                                            <span class="avatar-option" data-avatar="🎯">🎯</span>
+                                            <span class="avatar-option" data-avatar="🚀">🚀</span>
+                                            <span class="avatar-option" data-avatar="🌟">🌟</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- 提交记录 -->
+                                <div class="profile-section" id="section-submissions">
+                                    <h3 class="section-title">我的提交记录</h3>
+                                    <div class="submissions-list" id="profile-submissions-list">
+                                        <!-- 由JS动态渲染 -->
+                                    </div>
+                                    <div class="no-data" id="no-submissions">暂无提交记录</div>
+                                </div>
+                                <!-- 游戏统计 -->
+                                <div class="profile-section" id="section-stats">
+                                    <h3 class="section-title">游戏统计</h3>
+                                    <div class="stats-grid">
+                                        <div class="stat-item">
+                                            <span class="stat-value" id="stat-played">0</span>
+                                            <span class="stat-label">玩过的游戏</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-value" id="stat-favorites">0</span>
+                                            <span class="stat-label">收藏数</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-value" id="stat-total-plays">0</span>
+                                            <span class="stat-label">总游玩次数</span>
+                                        </div>
+                                        <div class="stat-item">
+                                            <span class="stat-value" id="stat-likes">0</span>
+                                            <span class="stat-label">获赞数</span>
+                                        </div>
+                                    </div>
+                                </div>
+                                <!-- 游戏设置 -->
+                                <div class="profile-section" id="section-game-settings">
+                                    <h3 class="section-title">游戏设置</h3>
+                                    <div class="form-group setting-row">
+                                        <div class="setting-info">
+                                            <label>是否参与排行榜</label>
+                                            <span class="setting-hint">关闭后游戏分数将不计入排行榜</span>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="setting-join-leaderboard" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                    <div class="form-group setting-row secondary">
+                                        <div class="setting-info">
+                                            <label>是否展示游戏视频到首页</label>
+                                            <span class="setting-hint">开启后精彩录像将展示在首页</span>
+                                        </div>
+                                        <label class="toggle-switch">
+                                            <input type="checkbox" id="setting-show-video" checked>
+                                            <span class="toggle-slider"></span>
+                                        </label>
+                                    </div>
+                                </div>
+                            </div>
+                            <!-- 底部保存按钮 -->
+                            <div class="profile-footer">
+                                <button class="profile-save-btn" id="profile-save-btn">💾 保存设置</button>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <!-- 分类标签 -->
+        <section class="categories">
+            <div class="container">
+                <div class="category-tags">
+                    <button class="category-tag active" data-category="all">全部游戏</button>
+                    <button class="category-tag" data-category="puzzle">🧩 益智</button>
+                    <button class="category-tag" data-category="arcade">🎮 街机</button>
+                    <button class="category-tag" data-category="racing">🏎️ 竞速</button>
+                    <button class="category-tag" data-category="sports">⚽ 体育</button>
+                    <button class="category-tag" data-category="board">♟️ 棋牌</button>
+                    <button class="category-tag" data-category="casual">🎯 休闲</button>
+                </div>
+            </div>
+        </section>
+    </div>
+
+    <!-- 游戏列表 -->
+    <main class="main-content">
+        <div class="container">
+            <!-- 游戏列表 -->
+            <section class="games-section">
+                <h2 class="section-title" id="section-title">🔥 热门游戏</h2>
+                <div class="games-grid" id="games-grid">
+                    <!-- 游戏卡片由JS动态渲染 -->
+                </div>
+            </section>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <p data-i18n="footer.copyright">&copy; 2026 GameZone - 免费在线游戏平台</p>
+            <div class="footer-links">
+                <a href="about.html" data-i18n="footer.about">关于我们</a>
+                <a href="privacy.html" data-i18n="footer.privacy">隐私政策</a>
+                <a href="about.html#contact" data-i18n="footer.contact">联系我们</a>
+            </div>
+        </div>
+    </footer>
+
+    <!-- 游戏提交模态框 -->
+    <div class="modal-overlay" id="submit-modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeSubmitModal()">&times;</button>
+            <div class="modal-body" id="submit-modal-body">
+                <!-- 表单视图 -->
+                <div id="submit-form-view">
+                    <h3 class="modal-title">🎮 推荐游戏</h3>
+                    <form id="game-submit-form">
+                        <div class="form-group">
+                            <label>游戏描述</label>
+                            <textarea id="game-desc" placeholder="描述一下你想要的游戏..." rows="3"></textarea>
+                        </div>
+                        <div class="form-group">
+                            <label>参考链接</label>
+                            <input type="text" id="game-link" placeholder="游戏网址或相关链接...">
+                        </div>
+                        <div class="form-group">
+                            <label>游戏截图</label>
+                            <div class="screenshot-upload" id="screenshot-area">
+                                <input type="file" id="screenshot-file" accept="image/*" style="display:none"
+                                    onchange="handleScreenshot(this)">
+                                <div class="upload-placeholder"
+                                    onclick="document.getElementById('screenshot-file').click()">
+                                    <span>📷 点击上传或直接粘贴图片</span>
+                                </div>
+                                <img id="screenshot-preview" style="display:none">
+                            </div>
+                        </div>
+                        <button type="submit" class="submit-btn" onclick="submitGame(event)">提交</button>
+                    </form>
+                </div>
+                <!-- 提交成功视图 -->
+                <div id="submit-success-view" style="display:none">
+                    <div class="success-icon">✨</div>
+                    <h3 class="success-text">敬请期待</h3>
+                    <p class="success-sub" id="view-my-submissions" style="display:none">
+                        <a href="#" onclick="showMySubmissions()">查看我的提交记录</a>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 我的提交记录模态框 -->
+    <div class="modal-overlay" id="my-modal">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeMyModal()">&times;</button>
+            <h3 class="modal-title">👤 我的提交记录</h3>
+            <div class="my-submissions-list" id="my-submissions-list">
+                <!-- 由JS动态渲染 -->
+            </div>
+        </div>
+    </div>
+
+    <script src="js/games-data.js"></script>
+    <script src="js/settings.js"></script>
+    <script src="js/main.js"></script>
+</body>
+
+</html>

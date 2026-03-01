@@ -1,0 +1,1511 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游戏 - GameZone</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="css/game-page.css">
+    <!-- 防止主题闪烁：在CSS加载后立即应用保存的主题 -->
+    <script>
+        (function () {
+            const savedTheme = localStorage.getItem('gamezone-theme');
+            const savedColor = localStorage.getItem('gamezone-color');
+            if (savedColor) {
+                document.documentElement.style.setProperty('--primary-color', savedColor);
+                // 计算hover色
+                const hex = savedColor.replace('#', '');
+                const r = Math.max(0, parseInt(hex.substr(0, 2), 16) - 20);
+                const g = Math.max(0, parseInt(hex.substr(2, 2), 16) - 20);
+                const b = Math.max(0, parseInt(hex.substr(4, 2), 16) - 20);
+                const hoverColor = '#' + r.toString(16).padStart(2, '0') + g.toString(16).padStart(2, '0') + b.toString(16).padStart(2, '0');
+                document.documentElement.style.setProperty('--primary-hover', hoverColor);
+            }
+            if (savedTheme === 'dark') {
+                document.documentElement.setAttribute('data-theme', 'dark');
+            }
+        })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+</head>
+
+<body>
+    <!-- 头部导航 -->
+    <header class="header">
+        <div class="container">
+            <a href="index.html" class="logo">
+                <span class="logo-icon">🎮</span>
+                <span class="logo-text">GameZone</span>
+            </a>
+            <a href="index.html" class="back-btn" data-i18n="backHome">← 返回首页</a>
+        </div>
+    </header>
+
+    <!-- 游戏区域 -->
+    <main class="game-main">
+        <div class="container">
+            <div class="game-header">
+                <h1 id="game-title">游戏加载中...</h1>
+                <div class="game-actions">
+                    <button id="record-btn" class="action-btn record-btn" data-i18n="record">🔴 录制</button>
+                    <button id="fullscreen-btn" class="action-btn" data-i18n="fullscreen">⛶ 全屏</button>
+                </div>
+            </div>
+
+            <div class="game-container">
+                <iframe id="game-frame" src="" allowfullscreen></iframe>
+                <!-- 全屏时显示的浮动控制栏 -->
+                <div id="fullscreen-controls" class="fullscreen-controls">
+                    <div id="record-timer" class="record-timer" style="display: none;">
+                        <span class="record-dot">●</span>
+                        <span class="record-time">00:00</span>
+                    </div>
+                    <button id="exit-fullscreen-btn" class="fs-btn" data-i18n="exitFullscreen">✕ 退出</button>
+                </div>
+                <div id="game-loading" class="game-loading">
+                    <div class="loading-spinner"></div>
+                    <p data-i18n="loading">加载中...</p>
+                </div>
+            </div>
+
+            <!-- 左右两栏布局 -->
+            <div class="game-bottom">
+                <!-- 左栏：排行榜/游戏说明切换 -->
+                <div class="left-panel">
+                    <div class="panel-tabs">
+                        <button class="panel-tab active" data-tab="leaderboard" data-i18n="leaderboardTab">🏆
+                            排行榜</button>
+                        <button class="panel-tab" data-tab="info" data-i18n="infoTab">📖 说明</button>
+                    </div>
+                    <div class="panel-content">
+                        <!-- 排行榜 -->
+                        <div class="tab-content active" id="tab-leaderboard">
+                            <div class="leaderboard">
+                                <div class="leaderboard-header">
+                                    <span class="rank-col" data-i18n="rank">排名</span>
+                                    <span class="player-col" data-i18n="player">玩家</span>
+                                    <span class="highlight-col" data-i18n="highlights">精彩集锦</span>
+                                    <span class="like-col" data-i18n="likes">点赞</span>
+                                    <span class="score-col" data-i18n="score">分数</span>
+                                    <span class="action-col"></span>
+                                </div>
+                                <div class="leaderboard-list" id="leaderboard-list">
+                                    <!-- 由JS动态渲染 -->
+                                </div>
+                                <div class="leaderboard-empty" id="leaderboard-empty">
+                                    <p data-i18n="noLeaderboard">🎮 暂无排行数据</p>
+                                    <p class="sub" data-i18n="beFirst">快来成为第一个上榜的玩家吧！</p>
+                                </div>
+                            </div>
+                        </div>
+                        <!-- 游戏说明 -->
+                        <div class="tab-content" id="tab-info">
+                            <div class="game-info-section">
+                                <h3 data-i18n="gameIntro">游戏介绍</h3>
+                                <p id="game-description">-</p>
+                            </div>
+                            <div class="game-info-section">
+                                <h3 data-i18n="controlsLabel">操作说明</h3>
+                                <p id="game-controls">-</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- 右栏：评论区 -->
+                <div class="right-panel">
+                    <div class="panel-header">
+                        <h2 data-i18n="commentsTitle">💬 评论区</h2>
+                        <span class="comment-count" id="comment-count">0 条评论</span>
+                    </div>
+                    <div class="comments-body">
+                        <div class="comments-list" id="comments-list">
+                            <!-- 由JS动态渲染 -->
+                        </div>
+                        <div class="comments-empty" id="comments-empty">
+                            <p data-i18n="noComments">🍀 爱评论的人，运气不会差</p>
+                        </div>
+                    </div>
+                    <!-- 底部评论输入框 -->
+                    <div class="comment-input-area" id="comment-input-area">
+                        <div class="input-row">
+                            <textarea id="comment-content" placeholder="说点什么..."
+                                data-i18n-placeholder="commentPlaceholder" maxlength="500"></textarea>
+                            <button class="comment-submit-btn" id="comment-submit" data-i18n="submit">发表</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 自定义确认弹窗 -->
+        <div id="confirm-modal" class="confirm-modal">
+            <div class="confirm-modal-content">
+                <div class="confirm-modal-icon">🗑️</div>
+                <h3 class="confirm-modal-title" data-i18n="confirmQuitRank">退出排名</h3>
+                <p class="confirm-modal-text"><span data-i18n="confirmQuitMsg">确定要退出这次排名吗？</span><br><span
+                        data-i18n="confirmQuitDetail">删除后你的分数和录像将从排行榜移除。</span></p>
+                <div class="confirm-modal-buttons">
+                    <button class="confirm-btn cancel" id="confirm-cancel" data-i18n="cancel">取消</button>
+                    <button class="confirm-btn confirm" id="confirm-ok" data-i18n="confirm">确定</button>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <!-- 页脚 -->
+    <footer class="footer">
+        <div class="container">
+            <p data-i18n="footerText">&copy; 2026 GameZone - 免费在线游戏平台</p>
+            <div class="footer-links">
+                <a href="about.html" data-i18n="aboutUs">关于我们</a>
+                <a href="privacy.html" data-i18n="privacyPolicy">隐私政策</a>
+                <a href="about.html#contact" data-i18n="contactUs">联系我们</a>
+            </div>
+        </div>
+    </footer>
+
+    <script src="js/games-data.js"></script>
+    <script>
+        // 获取URL参数中的游戏ID
+        const urlParams = new URLSearchParams(window.location.search);
+        const gameId = urlParams.get('id');
+
+        // 查找游戏数据
+        const game = gamesData.find(g => g.id === gameId);
+
+        // 游戏页面 i18n 翻译表
+        const gameLang = localStorage.getItem('gamezone-lang') || 'zh';
+        const gameI18n = {
+            zh: {
+                backHome: '← 返回首页', record: '🔴 录制', fullscreen: '⛶ 全屏',
+                leaderboardTab: '🏆 排行榜', infoTab: '📖 说明',
+                rank: '排名', player: '玩家', highlights: '精彩集锦', likes: '点赞', score: '分数',
+                noLeaderboard: '🎮 暂无排行数据', beFirst: '快来成为第一个上榜的玩家吧！',
+                gameIntro: '游戏介绍', controlsLabel: '操作说明',
+                commentsTitle: '💬 评论区', noComments: '🍀 爱评论的人，运气不会差',
+                commentPlaceholder: '说点什么...', submit: '发表',
+                footerText: '© 2026 GameZone - 免费在线游戏平台',
+                aboutUs: '关于我们', privacyPolicy: '隐私政策', contactUs: '联系我们',
+                loading: '加载中...', stopRecord: '⏹ 停止录制', exitFullscreen: '✕ 退出',
+                gameNotFound: '游戏未找到', gameNotFoundDesc: '抱歉,请返回首页选择其他游戏',
+                enableRecording: '请先在设置中开启录像功能',
+                playerPrefix: '玩家', confirmQuitRank: '退出排名',
+                confirmQuitMsg: '确定要退出这次排名吗？', confirmQuitDetail: '删除后你的分数和录像将从排行榜移除。',
+                cancel: '取消', confirm: '确定'
+            },
+            en: {
+                backHome: '← Back', record: '🔴 Record', fullscreen: '⛶ Fullscreen',
+                leaderboardTab: '🏆 Leaderboard', infoTab: '📖 Info',
+                rank: 'Rank', player: 'Player', highlights: 'Highlights', likes: 'Likes', score: 'Score',
+                noLeaderboard: '🎮 No rankings yet', beFirst: 'Be the first to make the leaderboard!',
+                gameIntro: 'About', controlsLabel: 'Controls',
+                commentsTitle: '💬 Comments', noComments: '🍀 Be the first to comment!',
+                commentPlaceholder: 'Say something...', submit: 'Post',
+                footerText: '© 2026 GameZone - Free Online Games',
+                aboutUs: 'About', privacyPolicy: 'Privacy', contactUs: 'Contact',
+                loading: 'Loading...', stopRecord: '⏹ Stop', exitFullscreen: '✕ Exit',
+                gameNotFound: 'Game Not Found', gameNotFoundDesc: 'Sorry, please go back and select another game.',
+                enableRecording: 'Please enable recording in settings first.',
+                playerPrefix: 'Player', confirmQuitRank: 'Quit Ranking',
+                confirmQuitMsg: 'Quit this ranking?', confirmQuitDetail: 'Your score and video will be removed from the leaderboard.',
+                cancel: 'Cancel', confirm: 'OK'
+            },
+            ja: {
+                backHome: '← 戻る', record: '🔴 録画', fullscreen: '⛶ 全画面',
+                leaderboardTab: '🏆 ランキング', infoTab: '📖 説明',
+                rank: '順位', player: 'プレイヤー', highlights: 'ハイライト', likes: 'いいね', score: 'スコア',
+                noLeaderboard: '🎮 ランキングデータなし', beFirst: '最初のプレイヤーになろう！',
+                gameIntro: 'ゲーム紹介', controlsLabel: '操作方法',
+                commentsTitle: '💬 コメント', noComments: '🍀 コメントを残そう',
+                commentPlaceholder: 'コメント...', submit: '投稿',
+                footerText: '© 2026 GameZone - 無料オンラインゲーム',
+                aboutUs: '紹介', privacyPolicy: 'プライバシー', contactUs: 'お問い合わせ',
+                loading: '読み込み中...', stopRecord: '⏹ 停止', exitFullscreen: '✕ 終了',
+                gameNotFound: 'ゲームが見つかりません', gameNotFoundDesc: '申し訳ございません。トップに戻って他のゲームをお選びください。',
+                enableRecording: '設定で録画を有効にしてください。',
+                playerPrefix: 'プレイヤー', confirmQuitRank: 'ランキング退出',
+                confirmQuitMsg: 'このランキングを退出しますか？', confirmQuitDetail: 'スコアと動画がランキングから削除されます。',
+                cancel: 'キャンセル', confirm: 'OK'
+            }
+        };
+        // 应用游戏页面 i18n
+        const t = gameI18n[gameLang] || gameI18n.zh;
+        document.querySelectorAll('[data-i18n]').forEach(el => {
+            const key = el.dataset.i18n;
+            if (t[key]) el.textContent = t[key];
+        });
+        document.querySelectorAll('[data-i18n-placeholder]').forEach(el => {
+            const key = el.dataset.i18nPlaceholder;
+            if (t[key]) el.placeholder = t[key];
+        });
+
+        if (game) {
+            // 根据语言设置游戏内容
+            let gName = game.name, gDesc = game.description, gCtrl = game.controls;
+            if (gameLang === 'en') {
+                gName = game.nameEn || gName;
+                gDesc = game.descriptionEn || gDesc;
+                gCtrl = game.controlsEn || gCtrl;
+            } else if (gameLang === 'ja') {
+                gName = game.nameJa || gName;
+                gDesc = game.descriptionJa || gDesc;
+                gCtrl = game.controlsJa || gCtrl;
+            }
+            document.title = `${gName} - GameZone`;
+            document.getElementById('game-title').textContent = gName;
+            document.getElementById('game-description').textContent = gDesc;
+            document.getElementById('game-controls').textContent = gCtrl;
+
+            // 加载游戏
+            const iframe = document.getElementById('game-frame');
+            const loading = document.getElementById('game-loading');
+
+            iframe.src = game.url;
+
+            const gameContainer = document.querySelector('.game-container');
+            const fsControls = document.getElementById('fullscreen-controls');
+
+            // 存储准备好的媒体流
+            let pendingStream = null;
+
+            // 录制按钮 - 获取权限后进入全屏并录制
+            document.getElementById('record-btn').addEventListener('click', async () => {
+                // 检查是否允许录像
+                const profile = JSON.parse(localStorage.getItem('gamezone-profile') || '{}');
+                const allowRecording = profile.allowRecording !== false;
+
+                if (!allowRecording) {
+                    alert(t.enableRecording);
+                    return;
+                }
+
+                try {
+                    // 先获取录制权限（用户同意）
+                    console.log('🎬 请求录制权限...');
+                    pendingStream = await navigator.mediaDevices.getDisplayMedia({
+                        video: true,
+                        audio: false,
+                        preferCurrentTab: true
+                    });
+                    console.log('🎬 录制权限已获取，准备进入全屏...');
+
+                    // 进入全屏
+                    if (gameContainer.requestFullscreen) {
+                        gameContainer.requestFullscreen();
+                    } else if (gameContainer.webkitRequestFullscreen) {
+                        gameContainer.webkitRequestFullscreen();
+                    }
+                } catch (err) {
+                    console.log('录制取消或失败:', err.message);
+                    pendingStream = null;
+                }
+            });
+
+            // 全屏按钮 - 只进入全屏，不录制
+            document.getElementById('fullscreen-btn').addEventListener('click', () => {
+                if (gameContainer.requestFullscreen) {
+                    gameContainer.requestFullscreen();
+                } else if (gameContainer.webkitRequestFullscreen) {
+                    gameContainer.webkitRequestFullscreen();
+                }
+            });
+
+            // 退出全屏按钮
+            document.getElementById('exit-fullscreen-btn').addEventListener('click', (e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                if (document.exitFullscreen) {
+                    document.exitFullscreen();
+                } else if (document.webkitExitFullscreen) {
+                    document.webkitExitFullscreen();
+                }
+            });
+
+            // 录制计时器相关
+            let recordTimerInterval = null;
+            let recordStartTime = null;
+
+            function updateRecordTimer() {
+                if (!recordStartTime) return;
+                const elapsed = Math.floor((Date.now() - recordStartTime) / 1000);
+                const minutes = Math.floor(elapsed / 60).toString().padStart(2, '0');
+                const seconds = (elapsed % 60).toString().padStart(2, '0');
+                const timeEl = document.querySelector('.record-time');
+                if (timeEl) {
+                    timeEl.textContent = `${minutes}:${seconds}`;
+                }
+            }
+
+            function startRecordTimer() {
+                recordStartTime = Date.now();
+                const timerEl = document.getElementById('record-timer');
+                const timeEl = document.querySelector('.record-time');
+                if (timerEl) timerEl.style.display = 'flex';  // 显示计时器
+                if (timeEl) timeEl.textContent = '00:00';
+                recordTimerInterval = setInterval(updateRecordTimer, 1000);
+            }
+
+            function stopRecordTimer() {
+                if (recordTimerInterval) {
+                    clearInterval(recordTimerInterval);
+                    recordTimerInterval = null;
+                }
+                recordStartTime = null;
+                const timerEl = document.getElementById('record-timer');
+                if (timerEl) timerEl.style.display = 'none';  // 隐藏计时器
+            }
+
+            // 全屏状态变化事件 - 自动开始/停止录制
+            document.addEventListener('fullscreenchange', async () => {
+                const isFullscreen = !!document.fullscreenElement;
+                if (isFullscreen) {
+                    // 进入全屏，使用已准备好的流开始录制
+                    if (pendingStream) {
+                        console.log('🎬 进入全屏，开始录制...');
+                        await startRecordingWithStream(pendingStream);
+                        pendingStream = null; // 清除引用
+                        if (isRecording) {
+                            startRecordTimer();
+                        }
+                    }
+                } else {
+                    // 退出全屏，自动停止录制
+                    if (isRecording) {
+                        console.log('🎬 退出全屏，停止录制...');
+                        stopRecording();
+                        stopRecordTimer();
+                    }
+                    // 清理未使用的流
+                    if (pendingStream) {
+                        pendingStream.getTracks().forEach(track => track.stop());
+                        pendingStream = null;
+                    }
+                }
+            });
+
+            // WebKit版本的全屏事件
+            document.addEventListener('webkitfullscreenchange', async () => {
+                const isFullscreen = !!document.webkitFullscreenElement;
+                if (isFullscreen) {
+                    if (pendingStream) {
+                        console.log('🎬 进入全屏，开始录制...');
+                        await startRecordingWithStream(pendingStream);
+                        pendingStream = null;
+                        if (isRecording) {
+                            startRecordTimer();
+                        }
+                    }
+                } else {
+                    if (isRecording) {
+                        console.log('🎬 退出全屏，停止录制...');
+                        stopRecording();
+                        stopRecordTimer();
+                    }
+                    if (pendingStream) {
+                        pendingStream.getTracks().forEach(track => track.stop());
+                        pendingStream = null;
+                    }
+                }
+            });
+
+            // 点击游戏区域时聚焦iframe，确保键盘输入能传递到游戏
+            document.querySelector('.game-container').addEventListener('click', () => {
+                iframe.focus();
+            });
+
+            // 鼠标移入游戏区域时自动聚焦
+            document.querySelector('.game-container').addEventListener('mouseenter', () => {
+                iframe.focus();
+            });
+
+            // 页面加载后自动聚焦游戏
+            iframe.onload = () => {
+                loading.style.display = 'none';
+                iframe.focus();
+            };
+
+            // 热度追踪：超过5秒计为一次游玩
+            let playStartTime = Date.now();
+            let playCounted = false;
+
+            function countPlay() {
+                if (playCounted) return;
+                const elapsed = Date.now() - playStartTime;
+                if (elapsed >= 5000) {
+                    playCounted = true;
+                    const playStats = JSON.parse(localStorage.getItem('gamePlayStats') || '{}');
+                    playStats[gameId] = (playStats[gameId] || 0) + 1;
+                    localStorage.setItem('gamePlayStats', JSON.stringify(playStats));
+                    console.log(`🔥 ${game.name} 热度+1，当前热度: ${playStats[gameId]}`);
+                }
+            }
+
+            const playTimer = setInterval(countPlay, 1000);
+            window.addEventListener('beforeunload', countPlay);
+
+            // ========== 录像功能 ==========
+            let mediaRecorder = null;
+            let recordedChunks = [];
+            let lastActivityTime = Date.now();
+            let activityCheckTimer = null;
+            let lastGameScore = null; // 存储游戏发送的分数
+
+            // 监听游戏发送的分数消息
+            window.addEventListener('message', (event) => {
+                if (event.data && event.data.type === 'gameScore') {
+                    lastGameScore = event.data.score;
+                    console.log(`📊 收到游戏分数: ${lastGameScore}`);
+                }
+            });
+            let isRecording = false;
+
+            // 检查用户是否允许录像
+            function isRecordingEnabled() {
+                const profile = JSON.parse(localStorage.getItem('gamezone-profile') || '{}');
+                return profile.showVideo !== false;
+            }
+
+            // 使用已准备好的流开始录像（进入全屏后调用）
+            async function startRecordingWithStream(stream) {
+                if (isRecording || !stream) return;
+
+                try {
+                    mediaRecorder = new MediaRecorder(stream, { mimeType: 'video/webm' });
+                    recordedChunks = [];
+
+                    mediaRecorder.ondataavailable = (e) => {
+                        if (e.data.size > 0) {
+                            recordedChunks.push(e.data);
+                        }
+                    };
+
+                    mediaRecorder.onstop = () => {
+                        saveRecording();
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+
+                    mediaRecorder.start(1000); // 每秒保存一次
+                    isRecording = true;
+                    lastActivityTime = Date.now();
+
+                    // 开始检测活动
+                    activityCheckTimer = setInterval(checkActivity, 1000);
+
+                    console.log('🎬 开始录像（全屏模式）');
+                } catch (err) {
+                    console.log('录像启动失败:', err.message);
+                }
+            }
+
+            // 停止录像
+            function stopRecording() {
+                if (mediaRecorder && isRecording) {
+                    mediaRecorder.stop();
+                    isRecording = false;
+                    if (activityCheckTimer) {
+                        clearInterval(activityCheckTimer);
+                        activityCheckTimer = null;
+                    }
+                    console.log('🛑 停止录像');
+                }
+            }
+
+            // 检测活动 - 已禁用，因为iframe内的操作无法检测
+            // 录制会一直进行直到用户手动停止或页面关闭
+            function checkActivity() {
+                // 不再自动停止，让用户手动控制
+                // 原逻辑：20秒无操作自动停止
+            }
+
+            // 记录用户活动
+            function recordActivity() {
+                lastActivityTime = Date.now();
+            }
+
+            // 监听用户活动
+            document.addEventListener('keydown', recordActivity);
+            document.addEventListener('mousemove', recordActivity);
+            document.addEventListener('click', recordActivity);
+
+            // 保存录像到服务器（本地开发）或IndexedDB（线上）
+            async function saveRecording() {
+                if (recordedChunks.length === 0) return;
+
+                const blob = new Blob(recordedChunks, { type: 'video/webm' });
+
+                // 获取玩家信息
+                const profile = JSON.parse(localStorage.getItem('gamezone-profile') || '{}');
+                const playerId = profile.id || 'player_' + Math.floor(Math.random() * 9000 + 1000);
+                const playerName = profile.nickname || t.playerPrefix + playerId.slice(-4);
+
+                // 确保profile有ID
+                if (!profile.id) {
+                    profile.id = playerId;
+                    localStorage.setItem('gamezone-profile', JSON.stringify(profile));
+                }
+
+                // 判断是否进入前20
+                let isInTop20 = false;
+                if (lastGameScore !== null) {
+                    const leaderboardData = getLeaderboard();
+                    const realPlayers = leaderboardData.filter(d => !d.isExample);
+
+                    if (realPlayers.length < 20) {
+                        isInTop20 = true;
+                    } else {
+                        const sortedScores = realPlayers.sort((a, b) => b.score - a.score);
+                        if (lastGameScore > sortedScores[19].score) {
+                            isInTop20 = true;
+                        }
+                    }
+                    console.log(`📊 分数: ${lastGameScore}, 进入前20: ${isInTop20}`);
+                }
+
+                // 尝试上传到本地服务器
+                let uploadSuccess = false;
+                let videoPath = null;
+
+                if (isInTop20) {
+                    try {
+                        const response = await fetch(
+                            `http://localhost:3001/api/upload-video?gameId=${gameId}&playerId=${playerId}&score=${lastGameScore}`,
+                            {
+                                method: 'POST',
+                                body: blob
+                            }
+                        );
+
+                        if (response.ok) {
+                            const result = await response.json();
+                            uploadSuccess = true;
+                            videoPath = result.path;
+                            console.log(`✅ 视频已上传到服务器: ${videoPath}`);
+                        }
+                    } catch (err) {
+                        console.log('⚠️ 本地服务器未运行，使用IndexedDB存储');
+                    }
+                }
+
+                // 如果服务器上传失败，回退到IndexedDB
+                let savedRecordingId = null;
+                if (!uploadSuccess && isInTop20) {
+                    try {
+                        savedRecordingId = Date.now();
+                        const recording = {
+                            id: savedRecordingId,
+                            gameId: gameId,
+                            gameName: game.name,
+                            blob: blob,
+                            timestamp: Date.now(),
+                            score: lastGameScore,
+                            isLeaderboard: true
+                        };
+                        const db = await openRecordingsDB();
+                        const tx = db.transaction('recordings', 'readwrite');
+                        tx.objectStore('recordings').add(recording);
+                        console.log(`💾 录像已保存到IndexedDB, ID: ${savedRecordingId}`);
+                    } catch (e) {
+                        console.log('IndexedDB保存失败:', e);
+                        savedRecordingId = null;
+                    }
+                }
+
+                // 如果有分数且进入前20，添加到排行榜
+                if (lastGameScore !== null && isInTop20) {
+                    let leaderboardData = getLeaderboard();
+                    const realPlayers = leaderboardData.filter(d => !d.isExample);
+                    const examplePlayer = leaderboardData.find(d => d.isExample);
+
+                    // 检查该玩家是否已存在，存在则更新
+                    const existingIndex = realPlayers.findIndex(p => p.playerId === playerId);
+                    if (existingIndex >= 0) {
+                        // 更新现有记录
+                        realPlayers[existingIndex].score = lastGameScore;
+                        realPlayers[existingIndex].time = Date.now();
+                        // 优先使用服务器路径，否则使用IndexedDB录像ID
+                        if (videoPath) {
+                            realPlayers[existingIndex].videoPath = videoPath;
+                        } else if (savedRecordingId) {
+                            realPlayers[existingIndex].recordingId = savedRecordingId;
+                        }
+                        console.log(`🔄 更新玩家 ${playerName} 的记录`);
+                    } else {
+                        // 添加新玩家记录
+                        const newEntry = {
+                            playerId: playerId,
+                            name: playerName,
+                            score: lastGameScore,
+                            likes: 0,
+                            isExample: false,
+                            time: Date.now()
+                        };
+                        // 优先使用服务器路径，否则使用IndexedDB录像ID
+                        if (videoPath) {
+                            newEntry.videoPath = videoPath;
+                        } else if (savedRecordingId) {
+                            newEntry.recordingId = savedRecordingId;
+                        }
+                        realPlayers.push(newEntry);
+                    }
+
+                    // 排序并保留前20名
+                    realPlayers.sort((a, b) => b.score - a.score);
+                    const top20 = realPlayers.slice(0, 20);
+                    const newData = examplePlayer ? [...top20, examplePlayer] : top20;
+                    saveLeaderboard(newData);
+
+                    console.log(`🏆 分数 ${lastGameScore} 已添加到排行榜, recordingId: ${savedRecordingId}`);
+                    renderLeaderboard();
+                }
+
+                // 重置分数
+                lastGameScore = null;
+            }
+
+            // 打开IndexedDB
+            function openRecordingsDB() {
+                return new Promise((resolve, reject) => {
+                    const request = indexedDB.open('GameRecordings', 1);
+                    request.onerror = () => reject(request.error);
+                    request.onsuccess = () => resolve(request.result);
+                    request.onupgradeneeded = (e) => {
+                        const db = e.target.result;
+                        if (!db.objectStoreNames.contains('recordings')) {
+                            db.createObjectStore('recordings', { keyPath: 'id' });
+                        }
+                    };
+                });
+            }
+
+            // 清理3小时前的过期录像（排行榜的除外）
+            async function cleanExpiredRecordings() {
+                const db = await openRecordingsDB();
+                const tx = db.transaction('recordings', 'readwrite');
+                const store = tx.objectStore('recordings');
+                const request = store.openCursor();
+
+                const threeHoursAgo = Date.now() - 3 * 60 * 60 * 1000;
+
+                request.onsuccess = (e) => {
+                    const cursor = e.target.result;
+                    if (cursor) {
+                        const record = cursor.value;
+                        if (!record.isLeaderboard && record.timestamp < threeHoursAgo) {
+                            cursor.delete();
+                            console.log('🗑️ 删除过期录像:', record.id);
+                        }
+                        cursor.continue();
+                    }
+                };
+            }
+
+            // 外部录制按钮（非全屏时使用）
+            const recordBtn = document.getElementById('record-btn');
+
+            recordBtn.addEventListener('click', async () => {
+                if (isRecording) {
+                    stopRecording();
+                    updateAllRecordButtons(false);
+                } else {
+                    await startRecording();
+                    if (isRecording) {
+                        updateAllRecordButtons(true);
+                    }
+                }
+            });
+
+            // 更新所有录制按钮状态（外部+全屏内按钮）
+            function updateAllRecordButtons(recording) {
+                // 外部按钮
+                if (recordBtn) {
+                    if (recording) {
+                        recordBtn.textContent = '⏹ 停止录制';
+                        recordBtn.classList.add('recording');
+                    } else {
+                        recordBtn.textContent = '🔴 录制';
+                        recordBtn.classList.remove('recording');
+                    }
+                }
+                // 全屏内按钮
+                const fsBtn = document.getElementById('record-btn-fs');
+                if (fsBtn) {
+                    if (recording) {
+                        fsBtn.textContent = '⏹ 停止';
+                        fsBtn.classList.add('recording');
+                    } else {
+                        fsBtn.textContent = '🔴 录制';
+                        fsBtn.classList.remove('recording');
+                    }
+                }
+            }
+
+            // 兼容旧函数名
+            function updateRecordButton(recording) {
+                updateAllRecordButtons(recording);
+            }
+
+            // 全屏变化监听 - 退出全屏时不自动停止录像
+            document.addEventListener('fullscreenchange', () => {
+                // 退出全屏时可以继续录制，不需要自动停止
+            });
+
+            // 页面关闭时停止录像
+            window.addEventListener('beforeunload', stopRecording);
+
+            // ========== 标签切换功能 ==========
+            try {
+                initTabs();
+            } catch (e) {
+                console.error('initTabs错误:', e);
+            }
+
+            // ========== 排行榜功能 ==========
+            try {
+                initLeaderboard();
+            } catch (e) {
+                console.error('initLeaderboard错误:', e);
+            }
+
+            // ========== 评论功能 ==========
+            try {
+                initComments();
+            } catch (e) {
+                console.error('initComments错误:', e);
+            }
+
+        } else {
+            document.getElementById('game-title').textContent = t.gameNotFound;
+            document.getElementById('game-description').textContent = t.gameNotFoundDesc;
+        }
+
+        // ========== 标签切换 ==========
+        function initTabs() {
+            const tabs = document.querySelectorAll('.panel-tab');
+            const contents = document.querySelectorAll('.tab-content');
+
+            tabs.forEach(tab => {
+                tab.addEventListener('click', () => {
+                    // 移除所有active
+                    tabs.forEach(t => t.classList.remove('active'));
+                    contents.forEach(c => c.classList.remove('active'));
+
+                    // 添加当前active
+                    tab.classList.add('active');
+                    const targetId = 'tab-' + tab.dataset.tab;
+                    document.getElementById(targetId).classList.add('active');
+                });
+            });
+        }
+
+        // ========== 排行榜 ==========
+        // 获取该游戏的预置视频路径
+        function getExampleVideoPath() {
+            // 示例视频统一放在游戏的leaderboard文件夹
+            return `games/${gameId}/leaderboard/example.mkv`;
+        }
+
+        function initLeaderboard() {
+            console.log('🏆 initLeaderboard 开始, gameId:', gameId);
+            let data = getLeaderboard();
+            console.log('🏆 当前数据:', data);
+
+            // 检测是否是旧数据需要重置（缺少playerId字段）
+            const examplePlayer = data.find(d => d.isExample);
+            const hasOldData = (examplePlayer && !examplePlayer.playerId);
+            if (hasOldData) {
+                console.log('🏆 检测到旧数据，重置示例玩家');
+                data = data.filter(d => !d.isExample);
+                saveLeaderboard(data);
+            }
+
+            // 确保有示例玩家
+            const hasExample = data.some(d => d.isExample);
+            console.log('🏆 是否有示例玩家:', hasExample);
+
+            if (!hasExample) {
+                console.log('🏆 创建示例玩家');
+                data.push({
+                    playerId: 'example_player',
+                    name: gameLang === 'en' ? 'Example Player' : (gameLang === 'ja' ? 'サンプル' : '示例玩家'),
+                    score: 1,
+                    likes: 1,
+                    isExample: true,
+                    videoPath: getExampleVideoPath(),
+                    time: Date.now()
+                });
+                saveLeaderboard(data);
+                console.log('🏆 示例玩家已保存, 新数据:', getLeaderboard());
+            }
+
+            renderLeaderboard();
+        }
+
+        function getLeaderboard() {
+            console.log('📋 getLeaderboard - gameId:', gameId);
+            const all = JSON.parse(localStorage.getItem('gameLeaderboards') || '{}');
+            console.log('📋 getLeaderboard - all keys:', Object.keys(all));
+            console.log('📋 getLeaderboard - data for gameId:', all[gameId]);
+            return all[gameId] || [];
+        }
+
+        function saveLeaderboard(data) {
+            const all = JSON.parse(localStorage.getItem('gameLeaderboards') || '{}');
+            all[gameId] = data;
+            localStorage.setItem('gameLeaderboards', JSON.stringify(all));
+        }
+
+        async function renderLeaderboard() {
+            const data = getLeaderboard();
+            const list = document.getElementById('leaderboard-list');
+            const empty = document.getElementById('leaderboard-empty');
+
+            if (data.length === 0) {
+                list.innerHTML = '';
+                empty.style.display = 'flex';
+                return;
+            }
+
+            // 从IndexedDB获取该游戏的排行榜录像
+            let recordings = [];
+            try {
+                const db = await openRecordingsDB();
+                const tx = db.transaction('recordings', 'readonly');
+                const store = tx.objectStore('recordings');
+                const allRecordings = await new Promise((resolve, reject) => {
+                    const req = store.getAll();
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+                recordings = allRecordings.filter(r => r.gameId === gameId && r.isLeaderboard);
+            } catch (e) {
+                console.log('获取录像失败:', e);
+            }
+
+            // 分离真实玩家和示例玩家，按点赞排序（同点赞按时间近优先）
+            const realPlayers = data.filter(d => !d.isExample)
+                .sort((a, b) => {
+                    const likeDiff = (b.likes || 0) - (a.likes || 0);
+                    if (likeDiff !== 0) return likeDiff;
+                    // 同点赞数时，时间近的靠前
+                    return (b.time || 0) - (a.time || 0);
+                })
+                .slice(0, 20);
+            const examplePlayer = data.find(d => d.isExample);
+
+            empty.style.display = 'none';
+
+            // 获取当前用户已点赞的玩家列表
+            const likedPlayers = JSON.parse(localStorage.getItem(`liked_${gameId}`) || '[]');
+
+            // 获取当前用户ID
+            const currentProfile = JSON.parse(localStorage.getItem('gamezone-profile') || '{}');
+            const currentPlayerId = currentProfile.id || null;
+
+            // 渲染单个排行榜项
+            const renderItem = (item, index, isExample = false) => {
+                const rankClass = index === 0 ? 'top1' : index === 1 ? 'top2' : index === 2 ? 'top3' : '';
+                const medal = index === 0 ? '🥇' : index === 1 ? '🥈' : index === 2 ? '🥉' : (index + 1);
+
+                // 查找匹配的录像
+                let highlightHtml = '-';
+                if (isExample && item.videoPath) {
+                    highlightHtml = `<a href="#" class="video-link example-video" data-video-path="${item.videoPath}">▶</a>`;
+                } else if (item.videoPath) {
+                    highlightHtml = `<a href="#" class="video-link file-video" data-video-path="${item.videoPath}">▶</a>`;
+                } else if (item.recordingId) {
+                    highlightHtml = `<a href="#" class="video-link" data-recording-id="${item.recordingId}">▶</a>`;
+                } else {
+                    const recording = recordings.find(r => r.score === item.score);
+                    if (recording) {
+                        highlightHtml = `<a href="#" class="video-link" data-recording-id="${recording.id}">▶</a>`;
+                    }
+                }
+
+                // 点赞按钮：检查是否已点赞
+                const playerId = item.playerId || item.name;
+                const hasLiked = likedPlayers.includes(playerId);
+                const likeClass = hasLiked ? 'liked' : '';
+                const likeHtml = `<button class="like-btn ${likeClass}" data-player-id="${playerId}" data-is-example="${isExample}">👍 ${item.likes || 0}</button>`;
+
+                // 删除按钮：只对当前用户自己的排名显示（示例玩家不能删除）
+                const isCurrentUser = !isExample && currentPlayerId && playerId === currentPlayerId;
+                const deleteHtml = isCurrentUser ?
+                    `<span class="action-col"><button class="delete-ranking-btn" data-player-id="${playerId}" title="退出排名">🗑️</button></span>` :
+                    '<span class="action-col"></span>';
+
+                return `
+                    <div class="leaderboard-item ${isExample ? 'example-item' : ''} ${isCurrentUser ? 'current-user' : ''}">
+                        <span class="rank-col ${rankClass}">${medal}</span>
+                        <span class="player-col">${escapeHtml(item.name)}</span>
+                        <span class="highlight-col">${highlightHtml}</span>
+                        <span class="like-col">${likeHtml}</span>
+                        <span class="score-col">${item.score.toLocaleString()}</span>
+                        ${deleteHtml}
+                    </div>
+                `;
+            };
+
+            // 渲染前20名真实玩家
+            let html = realPlayers.map((item, index) => renderItem(item, index, false)).join('');
+
+            // 示例玩家固定在最后（第21名）
+            if (examplePlayer) {
+                html += renderItem(examplePlayer, realPlayers.length, true);
+            }
+
+            list.innerHTML = html;
+
+            // 绑定点赞按钮事件
+            list.querySelectorAll('.like-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const playerId = btn.dataset.playerId;
+                    const isExample = btn.dataset.isExample === 'true';
+                    handleLike(playerId, isExample);
+                });
+            });
+
+            // 绑定录制视频点击事件
+            list.querySelectorAll('.video-link:not(.example-video):not(.file-video)').forEach(link => {
+                link.addEventListener('click', async (e) => {
+                    e.preventDefault();
+                    const recordingId = parseInt(link.dataset.recordingId);
+                    if (recordingId) await playRecording(recordingId);
+                });
+            });
+
+            // 绑定文件视频点击事件
+            list.querySelectorAll('.file-video').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const videoPath = link.dataset.videoPath;
+                    playExampleVideo(videoPath);
+                });
+            });
+
+            // 绑定示例视频点击事件
+            list.querySelectorAll('.example-video').forEach(link => {
+                link.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const videoPath = link.dataset.videoPath;
+                    playExampleVideo(videoPath);
+                });
+            });
+
+            // 绑定删除排名按钮事件
+            list.querySelectorAll('.delete-ranking-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.preventDefault();
+                    const playerId = btn.dataset.playerId;
+                    handleDeleteRanking(playerId);
+                });
+            });
+        }
+
+        // 处理删除排名 - 使用自定义弹窗
+        let pendingDeletePlayerId = null;
+
+        function handleDeleteRanking(playerId) {
+            pendingDeletePlayerId = playerId;
+            document.getElementById('confirm-modal').classList.add('show');
+        }
+
+        // 确认删除
+        document.getElementById('confirm-ok').addEventListener('click', () => {
+            if (pendingDeletePlayerId) {
+                // 从排行榜数据中删除
+                let data = getLeaderboard();
+                data = data.filter(d => (d.playerId || d.name) !== pendingDeletePlayerId);
+                saveLeaderboard(data);
+
+                console.log('🗑️ 已删除排名:', pendingDeletePlayerId);
+
+                // 重新渲染排行榜
+                renderLeaderboard();
+            }
+            closeConfirmModal();
+        });
+
+        // 取消删除
+        document.getElementById('confirm-cancel').addEventListener('click', closeConfirmModal);
+
+        // 点击背景关闭
+        document.getElementById('confirm-modal').addEventListener('click', (e) => {
+            if (e.target.id === 'confirm-modal') {
+                closeConfirmModal();
+            }
+        });
+
+        function closeConfirmModal() {
+            document.getElementById('confirm-modal').classList.remove('show');
+            pendingDeletePlayerId = null;
+        }
+
+        // 处理点赞/取消点赞
+        function handleLike(playerId, isExample) {
+            const likedKey = `liked_${gameId}`;
+            let likedPlayers = JSON.parse(localStorage.getItem(likedKey) || '[]');
+            const hasLiked = likedPlayers.includes(playerId);
+
+            // 更新排行榜数据
+            let data = getLeaderboard();
+            const player = data.find(d => (d.playerId || d.name) === playerId);
+
+            if (hasLiked) {
+                // 取消点赞
+                if (player && player.likes > 0) {
+                    player.likes = player.likes - 1;
+                    saveLeaderboard(data);
+                }
+                // 移除已点赞记录
+                likedPlayers = likedPlayers.filter(id => id !== playerId);
+                localStorage.setItem(likedKey, JSON.stringify(likedPlayers));
+                console.log('已取消点赞:', playerId);
+            } else {
+                // 点赞
+                if (player) {
+                    player.likes = (player.likes || 0) + 1;
+                    saveLeaderboard(data);
+                }
+                // 记录已点赞
+                likedPlayers.push(playerId);
+                localStorage.setItem(likedKey, JSON.stringify(likedPlayers));
+                console.log('已点赞:', playerId);
+            }
+
+            // 刷新显示
+            renderLeaderboard();
+        }
+
+        // 播放录像
+        async function playRecording(recordingId) {
+            try {
+                const db = await openRecordingsDB();
+                const tx = db.transaction('recordings', 'readonly');
+                const store = tx.objectStore('recordings');
+                const recording = await new Promise((resolve, reject) => {
+                    const req = store.get(recordingId);
+                    req.onsuccess = () => resolve(req.result);
+                    req.onerror = () => reject(req.error);
+                });
+
+                if (recording && recording.blob) {
+                    const url = URL.createObjectURL(recording.blob);
+                    showVideoModal(url, recording.gameName, true);
+                }
+            } catch (e) {
+                console.log('播放录像失败:', e);
+                alert('无法播放录像');
+            }
+        }
+
+        // 通用视频模态框（带倍速控制）
+        function showVideoModal(videoUrl, title, shouldRevokeUrl = false) {
+            const modal = document.createElement('div');
+            modal.className = 'video-modal';
+            modal.innerHTML = `
+                <div class="video-modal-content">
+                    <div class="video-modal-header">
+                        <span>🎬 精彩录像 - ${title}</span>
+                        <div class="speed-controls">
+                            <button class="speed-btn" data-speed="1">1x</button>
+                            <button class="speed-btn active" data-speed="1.5">1.5x</button>
+                            <button class="speed-btn" data-speed="2">2x</button>
+                        </div>
+                        <button class="modal-close-btn">&times;</button>
+                    </div>
+                    <div class="video-wrapper">
+                        <video autoplay src="${videoUrl}"></video>
+                        <div class="custom-controls">
+                            <button class="play-pause-btn">⏸️</button>
+                            <div class="progress-container">
+                                <div class="progress-bar">
+                                    <div class="progress-filled"></div>
+                                </div>
+                            </div>
+                            <span class="time-display">0:00 / 0:00</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            document.body.appendChild(modal);
+
+            const video = modal.querySelector('video');
+            const playPauseBtn = modal.querySelector('.play-pause-btn');
+            const progressBar = modal.querySelector('.progress-bar');
+            const progressFilled = modal.querySelector('.progress-filled');
+            const timeDisplay = modal.querySelector('.time-display');
+
+            let videoDuration = 0;  // 存储真实时长
+            video.playbackRate = 1.5;  // 默认1.5倍速
+
+            // 格式化时间
+            function formatTime(seconds) {
+                if (!isFinite(seconds) || seconds <= 0) return '0:00';
+                const mins = Math.floor(seconds / 60);
+                const secs = Math.floor(seconds % 60);
+                return `${mins}:${secs.toString().padStart(2, '0')}`;
+            }
+
+            // 获取WebM视频真实时长（修复duration为Infinity的问题）
+            function fixVideoDuration() {
+                if (video.duration && isFinite(video.duration) && video.duration > 0) {
+                    videoDuration = video.duration;
+                    updateProgress();
+                    return;
+                }
+                // WebM修复：seek到一个很大的时间点获取真实时长
+                video.currentTime = Number.MAX_SAFE_INTEGER;
+                video.ontimeupdate = function () {
+                    video.ontimeupdate = null;
+                    videoDuration = video.currentTime;
+                    video.currentTime = 0;
+                    video.play();
+                    updateProgress();
+                };
+            }
+
+            // 更新进度条
+            function updateProgress() {
+                if (videoDuration > 0) {
+                    const percent = (video.currentTime / videoDuration) * 100;
+                    progressFilled.style.width = `${Math.min(100, percent)}%`;
+                    timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(videoDuration)}`;
+                } else {
+                    timeDisplay.textContent = `${formatTime(video.currentTime)} / --:--`;
+                }
+            }
+
+            // 点击进度条跳转
+            progressBar.addEventListener('click', (e) => {
+                if (videoDuration <= 0) return;
+                const rect = progressBar.getBoundingClientRect();
+                const percent = (e.clientX - rect.left) / rect.width;
+                video.currentTime = Math.max(0, Math.min(videoDuration, percent * videoDuration));
+            });
+
+            // 拖动进度条
+            let isDragging = false;
+            progressBar.addEventListener('mousedown', () => isDragging = true);
+            document.addEventListener('mouseup', () => isDragging = false);
+            document.addEventListener('mousemove', (e) => {
+                if (isDragging && videoDuration > 0) {
+                    const rect = progressBar.getBoundingClientRect();
+                    let percent = (e.clientX - rect.left) / rect.width;
+                    percent = Math.max(0, Math.min(1, percent));
+                    video.currentTime = percent * videoDuration;
+                }
+            });
+
+            // 播放/暂停
+            playPauseBtn.addEventListener('click', () => {
+                if (video.paused) {
+                    video.play();
+                    playPauseBtn.textContent = '⏸️';
+                } else {
+                    video.pause();
+                    playPauseBtn.textContent = '▶️';
+                }
+            });
+
+            video.addEventListener('timeupdate', updateProgress);
+            video.addEventListener('loadedmetadata', fixVideoDuration);
+            video.addEventListener('play', () => playPauseBtn.textContent = '⏸️');
+            video.addEventListener('pause', () => playPauseBtn.textContent = '▶️');
+
+            // 倍速切换
+            modal.querySelectorAll('.speed-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    modal.querySelectorAll('.speed-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                    video.playbackRate = parseFloat(btn.dataset.speed);
+                });
+            });
+
+            // 关闭弹窗
+            const closeModal = () => {
+                if (shouldRevokeUrl) URL.revokeObjectURL(videoUrl);
+                modal.remove();
+            };
+            modal.querySelector('.modal-close-btn').onclick = closeModal;
+            modal.onclick = (e) => {
+                if (e.target === modal) closeModal();
+            };
+        }
+
+        // 播放预置示例视频
+        function playExampleVideo(videoPath) {
+            showVideoModal(videoPath, game.name, false);
+        }
+
+        // ========== 评论功能 ==========
+        // 生成随机昵称
+        function generateRandomNickname() {
+            const adjectives = ['快乐的', '勇敢的', '神秘的', '闪亮的', '酷炫的', '机智的', '超级', '无敌的'];
+            const nouns = ['玩家', '勇士', '大师', '高手', '达人', '王者', '冠军', '少侠'];
+            const adj = adjectives[Math.floor(Math.random() * adjectives.length)];
+            const noun = nouns[Math.floor(Math.random() * nouns.length)];
+            const num = Math.floor(Math.random() * 9000) + 1000;
+            return adj + noun + num;
+        }
+
+        let replyingTo = null; // 当前正在回复的评论ID
+
+        function initComments() {
+            renderComments();
+
+            const textarea = document.getElementById('comment-content');
+
+            // 自动调整高度
+            function autoResize() {
+                if (textarea.value === '') {
+                    textarea.style.height = '40px';
+                } else {
+                    textarea.style.height = '40px'; // 先重置
+                    textarea.style.height = Math.min(textarea.scrollHeight, 80) + 'px';
+                }
+            }
+            textarea.addEventListener('input', autoResize);
+
+            // 底部发表评论
+            document.getElementById('comment-submit').addEventListener('click', () => {
+                submitComment();
+                textarea.style.height = '40px'; // 重置高度
+            });
+
+            // 回车发送
+            textarea.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    submitComment();
+                    textarea.style.height = '40px'; // 重置高度
+                }
+            });
+        }
+
+        function submitComment(replyToId = null, replyToAuthor = null) {
+            const contentInput = document.getElementById('comment-content');
+
+            // 从账户设置中获取昵称
+            const profile = JSON.parse(localStorage.getItem('gamezone-profile') || '{}');
+            const nickname = profile.nickname || generateRandomNickname();
+
+            // 如果没有昵称，保存一个随机昵称
+            if (!profile.nickname) {
+                profile.nickname = nickname;
+                localStorage.setItem('gamezone-profile', JSON.stringify(profile));
+            }
+
+            const content = contentInput.value.trim();
+
+            if (!content) {
+                alert('请输入评论内容');
+                return;
+            }
+
+            // 获取一个随机地区
+            const locations = ['北京', '上海', '广东', '浙江', '江苏', '四川', '湖北', '福建', '山东', '河南'];
+            const location = locations[Math.floor(Math.random() * locations.length)];
+
+            const comment = {
+                id: Date.now(),
+                author: nickname,
+                avatar: profile.avatar || '👤',
+                content: content,
+                timestamp: Date.now(),
+                location: location,
+                replyTo: replyToId,
+                replyToAuthor: replyToAuthor,
+                replies: []
+            };
+
+            saveComment(comment);
+            contentInput.value = '';
+            contentInput.style.height = '40px'; // 重置高度
+            cancelReply();
+            renderComments();
+        }
+
+        function formatDate(timestamp) {
+            const now = Date.now();
+            const diff = now - timestamp;
+            const hours = Math.floor(diff / (1000 * 60 * 60));
+            const minutes = Math.floor(diff / (1000 * 60));
+
+            if (minutes < 1) {
+                return '刚刚';
+            } else if (minutes < 60) {
+                return `${minutes}分钟前`;
+            } else if (hours < 24) {
+                return `${hours}小时前`;
+            } else {
+                const date = new Date(timestamp);
+                const month = (date.getMonth() + 1).toString().padStart(2, '0');
+                const day = date.getDate().toString().padStart(2, '0');
+                return `${month}-${day}`;
+            }
+        }
+
+        function getComments() {
+            const all = JSON.parse(localStorage.getItem('gameComments') || '{}');
+            return all[gameId] || [];
+        }
+
+        function saveComment(comment) {
+            const all = JSON.parse(localStorage.getItem('gameComments') || '{}');
+            if (!all[gameId]) all[gameId] = [];
+            all[gameId].unshift(comment);
+            localStorage.setItem('gameComments', JSON.stringify(all));
+        }
+
+        function renderComments() {
+            const allComments = getComments();
+            const list = document.getElementById('comments-list');
+            const empty = document.getElementById('comments-empty');
+            const count = document.getElementById('comment-count');
+
+            count.textContent = gameLang === 'en' ? allComments.length + ' comments' : (gameLang === 'ja' ? allComments.length + ' コメント' : allComments.length + ' 条评论');
+
+            if (allComments.length === 0) {
+                list.innerHTML = '';
+                empty.style.display = 'flex';
+                return;
+            }
+
+            empty.style.display = 'none';
+
+            // 分离主评论和回复
+            const mainComments = allComments.filter(c => !c.replyTo);
+            const replies = allComments.filter(c => c.replyTo);
+
+            // 为每个主评论找到其回复
+            function getRepliesForComment(commentId) {
+                return replies.filter(r => r.replyTo === commentId);
+            }
+
+            // 渲染单条评论
+            function renderComment(c, isReply = false) {
+                const replyClass = isReply ? 'reply-item' : 'comment-item';
+
+                // 获取当前用户的设置
+                const currentProfile = JSON.parse(localStorage.getItem('gamezone-profile') || '{}');
+                const currentNickname = currentProfile.nickname || '';
+
+                // 判断是否是当前用户的评论（基于昵称匹配）
+                const isCurrentUser = c.author === currentNickname || c.author === c.originalAuthor;
+
+                // 如果是当前用户，显示最新的头像和昵称
+                const displayAvatar = isCurrentUser ? (currentProfile.avatar || '👤') : (c.avatar || '👤');
+                const displayAuthor = isCurrentUser ? (currentProfile.nickname || c.author) : c.author;
+
+                return `
+                <div class="${replyClass}" data-id="${c.id}">
+                    <div class="comment-avatar">${displayAvatar}</div>
+                    <div class="comment-body">
+                        <div class="comment-author">${escapeHtml(displayAuthor)}</div>
+                        <div class="comment-content">${escapeHtml(c.content)}</div>
+                        <div class="comment-meta">
+                            <span class="comment-time">${formatDate(c.timestamp || c.id)}</span>
+                            <span class="comment-location">${c.location || '未知'}</span>
+                            <button class="comment-reply-btn" onclick="startReply(${c.id}, '${escapeHtml(displayAuthor)}')">回复</button>
+                        </div>
+                    </div>
+                    <div class="inline-reply-container" id="reply-container-${c.id}"></div>
+                </div>
+                `;
+            }
+
+            // 渲染主评论及其回复
+            list.innerHTML = mainComments.map(c => {
+                const commentReplies = getRepliesForComment(c.id);
+                const repliesHtml = commentReplies.length > 0
+                    ? `<div class="comment-replies">${commentReplies.map(r => renderComment(r, true)).join('')}</div>`
+                    : '';
+
+                return renderComment(c, false) + repliesHtml;
+            }).join('');
+        }
+
+        // 开始回复
+        function startReply(commentId, authorName) {
+            cancelReply(); // 先取消之前的回复
+
+            replyingTo = { id: commentId, author: authorName };
+
+            // 隐藏底部输入框
+            document.getElementById('comment-input-area').classList.add('hidden');
+
+            // 在评论下方显示内联回复框
+            const container = document.getElementById(`reply-container-${commentId}`);
+            container.innerHTML = `
+                <div class="inline-reply-area">
+                    <textarea id="inline-reply-content" placeholder="回复 @${escapeHtml(authorName)}..." rows="2" maxlength="500"></textarea>
+                    <div class="inline-reply-actions">
+                        <button class="inline-reply-cancel" onclick="cancelReply()">取消</button>
+                        <button class="inline-reply-submit" onclick="submitInlineReply()">发送</button>
+                    </div>
+                </div>
+            `;
+
+            // 聚焦输入框
+            setTimeout(() => {
+                document.getElementById('inline-reply-content')?.focus();
+            }, 100);
+        }
+
+        // 取消回复
+        function cancelReply() {
+            if (replyingTo) {
+                const container = document.getElementById(`reply-container-${replyingTo.id}`);
+                if (container) container.innerHTML = '';
+            }
+            replyingTo = null;
+
+            // 显示底部输入框
+            document.getElementById('comment-input-area').classList.remove('hidden');
+        }
+
+        // 提交内联回复
+        function submitInlineReply() {
+            if (!replyingTo) return;
+
+            const content = document.getElementById('inline-reply-content').value.trim();
+            if (!content) {
+                alert('请输入回复内容');
+                return;
+            }
+
+            // 从账户设置获取昵称
+            const profile = JSON.parse(localStorage.getItem('gamezone-profile') || '{}');
+            const nickname = profile.nickname || generateRandomNickname();
+            const locations = ['北京', '上海', '广东', '浙江', '江苏', '四川', '湖北', '福建', '山东', '河南'];
+            const location = locations[Math.floor(Math.random() * locations.length)];
+
+            const comment = {
+                id: Date.now(),
+                author: nickname,
+                avatar: profile.avatar || '👤',
+                content: content,
+                timestamp: Date.now(),
+                location: location,
+                replyTo: replyingTo.id,
+                replyToAuthor: replyingTo.author
+            };
+
+            saveComment(comment);
+            cancelReply();
+            renderComments();
+        }
+
+        // HTML转义
+        function escapeHtml(text) {
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+    </script>
+</body>
+
+</html>

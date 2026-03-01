@@ -1,0 +1,339 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>迷宫</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #0f0c29 0%, #302b63 50%, #24243e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 15px;
+        }
+
+        .stat {
+            padding: 8px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+        }
+
+        .board {
+            display: grid;
+            gap: 1px;
+            padding: 10px;
+            background: #1a1a2e;
+            border-radius: 10px;
+            box-shadow: 0 0 30px rgba(0, 255, 0, 0.2);
+        }
+
+        .cell {
+            width: 25px;
+            height: 25px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+        }
+
+        .wall {
+            background: #2c2c54;
+        }
+
+        .path {
+            background: #474787;
+        }
+
+        .player {
+            background: #00ff00;
+            border-radius: 50%;
+        }
+
+        .goal {
+            background: #ffd700;
+        }
+
+        .visited {
+            background: rgba(0, 255, 0, 0.2);
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 5px;
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .btn {
+            margin-top: 15px;
+            padding: 10px 25px;
+            font-size: 14px;
+            background: #00ff00;
+            color: #222;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #ffd700;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🌀 迷宫</h1>
+    <div class="stats">
+        <div class="stat">步数: <span id="moves">0</span></div>
+        <div class="stat">关卡: <span id="level">1</span></div>
+        <div class="stat">⏱️ <span id="timer">0:00</span></div>
+    </div>
+    <div class="board" id="board"></div>
+    <div class="controls">
+        <div class="control-row">
+            <button class="control-btn" onclick="move(0,-1)">⬆️</button>
+        </div>
+        <div class="control-row">
+            <button class="control-btn" onclick="move(-1,0)">⬅️</button>
+            <button class="control-btn" onclick="move(0,1)">⬇️</button>
+            <button class="control-btn" onclick="move(1,0)">➡️</button>
+        </div>
+    </div>
+    <button class="btn" onclick="generateMaze()">🔄 新迷宫</button>
+
+    <div id="winOverlay" class="overlay hidden">
+        <h2>🎉 到达终点!</h2>
+        <p>步数: <span id="winMoves">0</span></p>
+        <p>用时: <span id="winTime">0:00</span></p>
+        <button class="btn" onclick="nextLevel()">下一关</button>
+    </div>
+
+    <script>
+        let size = 15;
+        let maze = [];
+        let player = { x: 1, y: 1 };
+        let goal = { x: 0, y: 0 };
+        let moves = 0;
+        let level = 1;
+        let seconds = 0;
+        let timer = null;
+        let visited = new Set();
+
+        function generateMaze() {
+            // Increase size with level
+            size = Math.min(11 + level * 2, 25);
+            if (size % 2 === 0) size++;
+
+            // Initialize with walls
+            maze = [];
+            for (let y = 0; y < size; y++) {
+                maze[y] = [];
+                for (let x = 0; x < size; x++) {
+                    maze[y][x] = '#';
+                }
+            }
+
+            // Generate maze using recursive backtracking
+            const stack = [];
+            const start = { x: 1, y: 1 };
+            maze[start.y][start.x] = ' ';
+            stack.push(start);
+
+            while (stack.length > 0) {
+                const current = stack[stack.length - 1];
+                const neighbors = getUnvisitedNeighbors(current.x, current.y);
+
+                if (neighbors.length === 0) {
+                    stack.pop();
+                } else {
+                    const next = neighbors[Math.floor(Math.random() * neighbors.length)];
+                    // Remove wall between current and next
+                    const wx = current.x + (next.x - current.x) / 2;
+                    const wy = current.y + (next.y - current.y) / 2;
+                    maze[wy][wx] = ' ';
+                    maze[next.y][next.x] = ' ';
+                    stack.push(next);
+                }
+            }
+
+            // Set player and goal
+            player = { x: 1, y: 1 };
+            goal = { x: size - 2, y: size - 2 };
+            maze[goal.y][goal.x] = ' ';
+
+            // Reset stats
+            moves = 0;
+            seconds = 0;
+            visited = new Set();
+            visited.add(`${player.x},${player.y}`);
+
+            document.getElementById('moves').textContent = '0';
+            document.getElementById('level').textContent = level;
+            document.getElementById('timer').textContent = '0:00';
+            document.getElementById('winOverlay').classList.add('hidden');
+
+            if (timer) clearInterval(timer);
+            timer = setInterval(() => {
+                seconds++;
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                document.getElementById('timer').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            }, 1000);
+
+            renderMaze();
+        }
+
+        function getUnvisitedNeighbors(x, y) {
+            const neighbors = [];
+            const dirs = [[0, -2], [2, 0], [0, 2], [-2, 0]];
+
+            for (const [dx, dy] of dirs) {
+                const nx = x + dx;
+                const ny = y + dy;
+                if (nx > 0 && nx < size - 1 && ny > 0 && ny < size - 1 && maze[ny][nx] === '#') {
+                    neighbors.push({ x: nx, y: ny });
+                }
+            }
+
+            return neighbors;
+        }
+
+        function renderMaze() {
+            const board = document.getElementById('board');
+            board.style.gridTemplateColumns = `repeat(${size}, 25px)`;
+            board.innerHTML = '';
+
+            for (let y = 0; y < size; y++) {
+                for (let x = 0; x < size; x++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+
+                    if (player.x === x && player.y === y) {
+                        cell.className += ' player';
+                        cell.textContent = '😊';
+                    } else if (goal.x === x && goal.y === y) {
+                        cell.className += ' goal';
+                        cell.textContent = '🏆';
+                    } else if (maze[y][x] === '#') {
+                        cell.className += ' wall';
+                    } else if (visited.has(`${x},${y}`)) {
+                        cell.className += ' path visited';
+                    } else {
+                        cell.className += ' path';
+                    }
+
+                    board.appendChild(cell);
+                }
+            }
+        }
+
+        function move(dx, dy) {
+            const nx = player.x + dx;
+            const ny = player.y + dy;
+
+            if (nx < 0 || nx >= size || ny < 0 || ny >= size) return;
+            if (maze[ny][nx] === '#') return;
+
+            player.x = nx;
+            player.y = ny;
+            moves++;
+            visited.add(`${nx},${ny}`);
+
+            document.getElementById('moves').textContent = moves;
+            renderMaze();
+
+            // Check win
+            if (player.x === goal.x && player.y === goal.y) {
+                win();
+            }
+        }
+
+        function win() {
+            clearInterval(timer);
+            const mins = Math.floor(seconds / 60);
+            const secs = seconds % 60;
+            document.getElementById('winMoves').textContent = moves;
+            document.getElementById('winTime').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+            document.getElementById('winOverlay').classList.remove('hidden');
+        }
+
+        function nextLevel() {
+            level++;
+            generateMaze();
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp': case 'w': move(0, -1); break;
+                case 'ArrowDown': case 's': move(0, 1); break;
+                case 'ArrowLeft': case 'a': move(-1, 0); break;
+                case 'ArrowRight': case 'd': move(1, 0); break;
+            }
+        });
+
+        generateMaze();
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

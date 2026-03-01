@@ -1,0 +1,408 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>推箱子</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
+        }
+
+        h1 {
+            margin-bottom: 15px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 20px;
+            margin-bottom: 15px;
+        }
+
+        .stat {
+            padding: 8px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 20px;
+        }
+
+        .levels {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 15px;
+        }
+
+        .level-btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-weight: bold;
+        }
+
+        .level-btn.active {
+            background: #3498db;
+        }
+
+        .board {
+            display: grid;
+            gap: 2px;
+            padding: 10px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 10px;
+        }
+
+        .cell {
+            width: 40px;
+            height: 40px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            border-radius: 4px;
+        }
+
+        .wall {
+            background: #7f8c8d;
+        }
+
+        .floor {
+            background: #95a5a6;
+        }
+
+        .target {
+            background: #27ae60;
+        }
+
+        .box {
+            background: #e67e22;
+            border-radius: 5px;
+        }
+
+        .box-on-target {
+            background: #2ecc71;
+            border-radius: 5px;
+        }
+
+        .player {
+            background: #3498db;
+            border-radius: 50%;
+        }
+
+        .controls {
+            margin-top: 20px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .control-row {
+            display: flex;
+            gap: 5px;
+        }
+
+        .control-btn {
+            width: 50px;
+            height: 50px;
+            font-size: 24px;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+        }
+
+        .control-btn:active {
+            background: rgba(255, 255, 255, 0.4);
+        }
+
+        .btn {
+            margin-top: 15px;
+            padding: 10px 25px;
+            font-size: 14px;
+            background: rgba(255, 255, 255, 0.2);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+        }
+
+        .win-msg {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(46, 204, 113, 0.95);
+            padding: 30px 50px;
+            border-radius: 20px;
+            text-align: center;
+            z-index: 100;
+        }
+
+        .win-msg.hidden {
+            display: none;
+        }
+
+        .win-msg h2 {
+            font-size: 36px;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>📦 推箱子</h1>
+    <div class="stats">
+        <div class="stat">步数: <span id="moves">0</span></div>
+        <div class="stat">推动: <span id="pushes">0</span></div>
+    </div>
+    <div class="levels" id="levels"></div>
+    <div class="board" id="board"></div>
+    <div class="controls">
+        <div class="control-row">
+            <button class="control-btn" onclick="move(0,-1)">⬆️</button>
+        </div>
+        <div class="control-row">
+            <button class="control-btn" onclick="move(-1,0)">⬅️</button>
+            <button class="control-btn" onclick="move(0,1)">⬇️</button>
+            <button class="control-btn" onclick="move(1,0)">➡️</button>
+        </div>
+    </div>
+    <button class="btn" onclick="loadLevel(currentLevel)">🔄 重置关卡</button>
+
+    <div id="winMsg" class="win-msg hidden">
+        <h2>🎉 过关!</h2>
+        <p>步数: <span id="winMoves">0</span></p>
+        <button class="btn" onclick="nextLevel()" style="background:#27ae60;">下一关</button>
+    </div>
+
+    <script>
+        const levels = [
+            // Level 1
+            [
+                "  ###  ",
+                "  #.#  ",
+                "  # ###",
+                "###$ $.#",
+                "#. $@###",
+                "####   ",
+            ],
+            // Level 2
+            [
+                "####  ",
+                "#  ###",
+                "# $$ #",
+                "#.@. #",
+                "# $$ #",
+                "#  ###",
+                "####  "
+            ],
+            // Level 3
+            [
+                " #####",
+                "##   #",
+                "#  $ #",
+                "# $$.###",
+                "##.#   #",
+                " #.  @ #",
+                " #  ####",
+                " ####   "
+            ],
+            // Level 4
+            [
+                "  ####  ",
+                "###  ###",
+                "#   $  #",
+                "#  .#$ #",
+                "## #. ##",
+                " # $. # ",
+                " #  @ # ",
+                " ###### "
+            ],
+            // Level 5
+            [
+                "#######",
+                "#     #",
+                "# .$. #",
+                "# $.$ #",
+                "# .$. #",
+                "#  @  #",
+                "#######"
+            ]
+        ];
+
+        let currentLevel = 0;
+        let board = [];
+        let player = { x: 0, y: 0 };
+        let moves = 0;
+        let pushes = 0;
+
+        function parseLevel(levelData) {
+            board = [];
+            const maxWidth = Math.max(...levelData.map(r => r.length));
+
+            for (let y = 0; y < levelData.length; y++) {
+                board[y] = [];
+                for (let x = 0; x < maxWidth; x++) {
+                    const char = levelData[y][x] || ' ';
+                    let cell = { type: 'empty', hasBox: false, isTarget: false };
+
+                    switch (char) {
+                        case '#': cell.type = 'wall'; break;
+                        case ' ': cell.type = 'floor'; break;
+                        case '.': cell.type = 'floor'; cell.isTarget = true; break;
+                        case '$': cell.type = 'floor'; cell.hasBox = true; break;
+                        case '*': cell.type = 'floor'; cell.isTarget = true; cell.hasBox = true; break;
+                        case '@': cell.type = 'floor'; player = { x, y }; break;
+                        case '+': cell.type = 'floor'; cell.isTarget = true; player = { x, y }; break;
+                    }
+                    board[y][x] = cell;
+                }
+            }
+        }
+
+        function renderBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.style.gridTemplateColumns = `repeat(${board[0].length}, 40px)`;
+            boardEl.innerHTML = '';
+
+            for (let y = 0; y < board.length; y++) {
+                for (let x = 0; x < board[y].length; x++) {
+                    const cell = board[y][x];
+                    const div = document.createElement('div');
+                    div.className = 'cell';
+
+                    if (player.x === x && player.y === y) {
+                        div.className += ' player';
+                        div.textContent = '😊';
+                    } else if (cell.hasBox) {
+                        div.className += cell.isTarget ? ' box-on-target' : ' box';
+                        div.textContent = '📦';
+                    } else if (cell.type === 'wall') {
+                        div.className += ' wall';
+                    } else if (cell.isTarget) {
+                        div.className += ' target';
+                        div.textContent = '⭐';
+                    } else if (cell.type === 'floor') {
+                        div.className += ' floor';
+                    }
+
+                    boardEl.appendChild(div);
+                }
+            }
+
+            document.getElementById('moves').textContent = moves;
+            document.getElementById('pushes').textContent = pushes;
+        }
+
+        function move(dx, dy) {
+            const nx = player.x + dx;
+            const ny = player.y + dy;
+
+            if (ny < 0 || ny >= board.length || nx < 0 || nx >= board[0].length) return;
+
+            const nextCell = board[ny][nx];
+            if (nextCell.type === 'wall') return;
+
+            if (nextCell.hasBox) {
+                // Try to push box
+                const bx = nx + dx;
+                const by = ny + dy;
+
+                if (by < 0 || by >= board.length || bx < 0 || bx >= board[0].length) return;
+
+                const boxTarget = board[by][bx];
+                if (boxTarget.type === 'wall' || boxTarget.hasBox) return;
+
+                // Push box
+                nextCell.hasBox = false;
+                boxTarget.hasBox = true;
+                pushes++;
+            }
+
+            player.x = nx;
+            player.y = ny;
+            moves++;
+
+            renderBoard();
+            checkWin();
+        }
+
+        function checkWin() {
+            for (let y = 0; y < board.length; y++) {
+                for (let x = 0; x < board[y].length; x++) {
+                    if (board[y][x].isTarget && !board[y][x].hasBox) return;
+                }
+            }
+
+            // Win!
+            document.getElementById('winMoves').textContent = moves;
+            document.getElementById('winMsg').classList.remove('hidden');
+        }
+
+        function loadLevel(index) {
+            currentLevel = index;
+            moves = 0;
+            pushes = 0;
+            document.getElementById('winMsg').classList.add('hidden');
+            parseLevel(levels[index]);
+            renderBoard();
+
+            // Update level buttons
+            document.querySelectorAll('.level-btn').forEach((btn, i) => {
+                btn.classList.toggle('active', i === index);
+            });
+        }
+
+        function nextLevel() {
+            if (currentLevel < levels.length - 1) {
+                loadLevel(currentLevel + 1);
+            } else {
+                alert('恭喜通关所有关卡!');
+                loadLevel(0);
+            }
+        }
+
+        function initLevelButtons() {
+            const container = document.getElementById('levels');
+            levels.forEach((_, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'level-btn';
+                btn.textContent = `关卡 ${i + 1}`;
+                btn.onclick = () => loadLevel(i);
+                container.appendChild(btn);
+            });
+        }
+
+        document.addEventListener('keydown', (e) => {
+            switch (e.key) {
+                case 'ArrowUp': case 'w': move(0, -1); break;
+                case 'ArrowDown': case 's': move(0, 1); break;
+                case 'ArrowLeft': case 'a': move(-1, 0); break;
+                case 'ArrowRight': case 'd': move(1, 0); break;
+            }
+        });
+
+        initLevelButtons();
+        loadLevel(0);
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

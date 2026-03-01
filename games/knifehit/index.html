@@ -1,0 +1,345 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>飞刀</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(180deg, #1a1a2e 0%, #16213e 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
+            overflow: hidden;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            width: 100%;
+            padding: 20px 40px;
+        }
+
+        .score {
+            font-size: 32px;
+            font-weight: bold;
+        }
+
+        .level {
+            font-size: 24px;
+            color: #ffd700;
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+            color: #888;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            font-size: 20px;
+            background: #ffd700;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .knives-left {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .knife-icon {
+            width: 30px;
+            height: 8px;
+            background: #888;
+            border-radius: 2px;
+        }
+
+        .knife-icon.active {
+            background: #ffd700;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="header">
+        <div class="score">分数: <span id="score">0</span></div>
+        <div class="level">关卡 <span id="level">1</span></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+    <div class="knives-left" id="knivesLeft"></div>
+
+    <div id="start" class="overlay">
+        <h2>🔪 飞刀</h2>
+        <p>点击或按空格投掷飞刀</p>
+        <p>将所有飞刀插入木桩!</p>
+        <button class="btn" onclick="startGame()">开始游戏</button>
+    </div>
+
+    <div id="gameover" class="overlay hidden">
+        <h2>💥 游戏结束</h2>
+        <p>到达关卡: <span id="finalLevel">1</span></p>
+        <p>最终分数: <span id="finalScore">0</span></p>
+        <button class="btn" onclick="startGame()">再来一次</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 400;
+        canvas.height = 600;
+
+        let score = 0;
+        let level = 1;
+        let knivesLeft = 5;
+        let stuckKnives = [];
+        let currentKnife = null;
+        let logAngle = 0;
+        let logSpeed = 0.02;
+        let gameRunning = false;
+        let knifeFlying = false;
+
+        const logRadius = 80;
+        const logCenterX = canvas.width / 2;
+        const logCenterY = 200;
+        const knifeLength = 60;
+        const knifeWidth = 8;
+
+        function drawLog() {
+            ctx.save();
+            ctx.translate(logCenterX, logCenterY);
+            ctx.rotate(logAngle);
+
+            // Log body
+            ctx.beginPath();
+            ctx.arc(0, 0, logRadius, 0, Math.PI * 2);
+            ctx.fillStyle = '#8B4513';
+            ctx.fill();
+
+            // Log rings
+            ctx.beginPath();
+            ctx.arc(0, 0, logRadius * 0.7, 0, Math.PI * 2);
+            ctx.strokeStyle = '#654321';
+            ctx.lineWidth = 2;
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.arc(0, 0, logRadius * 0.4, 0, Math.PI * 2);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawStuckKnives() {
+            stuckKnives.forEach(knife => {
+                ctx.save();
+                ctx.translate(logCenterX, logCenterY);
+                ctx.rotate(logAngle + knife.angle);
+
+                // Knife blade
+                ctx.fillStyle = '#C0C0C0';
+                ctx.fillRect(-knifeWidth / 2, -logRadius - knifeLength, knifeWidth, knifeLength);
+
+                // Knife handle
+                ctx.fillStyle = '#4a4a4a';
+                ctx.fillRect(-knifeWidth / 2 - 2, -logRadius - knifeLength - 20, knifeWidth + 4, 25);
+
+                ctx.restore();
+            });
+        }
+
+        function drawCurrentKnife() {
+            if (!currentKnife) return;
+
+            ctx.save();
+            ctx.translate(logCenterX, currentKnife.y);
+
+            // Knife blade
+            ctx.fillStyle = '#C0C0C0';
+            ctx.fillRect(-knifeWidth / 2, -knifeLength / 2, knifeWidth, knifeLength);
+
+            // Knife handle
+            ctx.fillStyle = '#ffd700';
+            ctx.fillRect(-knifeWidth / 2 - 2, knifeLength / 2 - 5, knifeWidth + 4, 25);
+
+            ctx.restore();
+        }
+
+        function updateKnivesDisplay() {
+            const container = document.getElementById('knivesLeft');
+            container.innerHTML = '';
+            for (let i = 0; i < knivesLeft; i++) {
+                const div = document.createElement('div');
+                div.className = 'knife-icon' + (i === knivesLeft - 1 ? ' active' : '');
+                container.appendChild(div);
+            }
+        }
+
+        function throwKnife() {
+            if (!gameRunning || knifeFlying || knivesLeft <= 0) return;
+            knifeFlying = true;
+        }
+
+        function checkCollision() {
+            const knifeAngle = Math.PI / 2; // Coming from bottom
+            const normalizedAngle = ((knifeAngle - logAngle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+
+            for (const stuck of stuckKnives) {
+                const stuckNorm = ((stuck.angle) % (Math.PI * 2) + Math.PI * 2) % (Math.PI * 2);
+                const diff = Math.abs(normalizedAngle - stuckNorm);
+                const minDiff = Math.min(diff, Math.PI * 2 - diff);
+
+                if (minDiff < 0.3) {
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        function stickKnife() {
+            const knifeAngle = Math.PI / 2 - logAngle;
+            stuckKnives.push({ angle: knifeAngle });
+            score += 10;
+            knivesLeft--;
+            document.getElementById('score').textContent = score;
+            updateKnivesDisplay();
+
+            if (knivesLeft === 0) {
+                nextLevel();
+            } else {
+                resetKnife();
+            }
+        }
+
+        function nextLevel() {
+            level++;
+            document.getElementById('level').textContent = level;
+            knivesLeft = 5 + Math.floor(level / 2);
+            stuckKnives = [];
+            logSpeed = 0.02 + level * 0.005;
+
+            // Add some pre-stuck knives for higher levels
+            if (level > 2) {
+                const preKnives = Math.min(level - 2, 4);
+                for (let i = 0; i < preKnives; i++) {
+                    stuckKnives.push({ angle: (Math.PI * 2 / preKnives) * i });
+                }
+            }
+
+            updateKnivesDisplay();
+            resetKnife();
+        }
+
+        function resetKnife() {
+            currentKnife = { y: canvas.height - 80 };
+            knifeFlying = false;
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalLevel').textContent = level;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameover').classList.remove('hidden');
+        }
+
+        function startGame() {
+            score = 0;
+            level = 1;
+            knivesLeft = 5;
+            stuckKnives = [];
+            logAngle = 0;
+            logSpeed = 0.02;
+            gameRunning = true;
+
+            document.getElementById('score').textContent = '0';
+            document.getElementById('level').textContent = '1';
+            document.getElementById('start').classList.add('hidden');
+            document.getElementById('gameover').classList.add('hidden');
+
+            updateKnivesDisplay();
+            resetKnife();
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            logAngle += logSpeed;
+
+            if (knifeFlying && currentKnife) {
+                currentKnife.y -= 15;
+
+                if (currentKnife.y <= logCenterY + logRadius + knifeLength / 2) {
+                    if (checkCollision()) {
+                        gameOver();
+                        return;
+                    }
+                    stickKnife();
+                }
+            }
+
+            drawLog();
+            drawStuckKnives();
+            drawCurrentKnife();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('click', throwKnife);
+        document.addEventListener('keydown', (e) => {
+            if (e.code === 'Space') {
+                e.preventDefault();
+                throwKnife();
+            }
+        });
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

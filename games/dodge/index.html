@@ -1,0 +1,309 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>躲避球</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .hud {
+            position: fixed;
+            top: 20px;
+            display: flex;
+            gap: 40px;
+            color: white;
+            font-size: 24px;
+        }
+
+        .time {
+            color: #00ff00;
+        }
+
+        #gameCanvas {
+            display: block;
+            border: 3px solid #333;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            font-size: 20px;
+            background: #00ff00;
+            color: #1a1a2e;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hud">
+        <div class="time">⏱️ <span id="time">0.0</span>s</div>
+        <div>🏆 最高: <span id="best">0.0</span>s</div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="start" class="overlay">
+        <h2>⚡ 躲避球</h2>
+        <p>移动鼠标或触摸屏控制圆点</p>
+        <p>尽可能长时间躲避红色方块!</p>
+        <button class="btn" onclick="startGame()">开始游戏</button>
+    </div>
+
+    <div id="gameover" class="overlay hidden">
+        <h2>💥 撞上了!</h2>
+        <p>存活时间: <span id="finalTime">0.0</span>s</p>
+        <button class="btn" onclick="startGame()">再来一次</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 500;
+        canvas.height = 500;
+
+        let player = { x: 250, y: 250, radius: 15 };
+        let enemies = [];
+        let time = 0;
+        let gameRunning = false;
+        let bestTime = parseFloat(localStorage.getItem('dodgeBest')) || 0;
+        let spawnRate = 0.02;
+
+        document.getElementById('best').textContent = bestTime.toFixed(1);
+
+        function spawnEnemy() {
+            const side = Math.floor(Math.random() * 4);
+            let x, y, vx, vy;
+            const speed = 2 + time * 0.1;
+
+            switch (side) {
+                case 0: // Top
+                    x = Math.random() * canvas.width;
+                    y = -20;
+                    vx = (Math.random() - 0.5) * 2;
+                    vy = speed;
+                    break;
+                case 1: // Right
+                    x = canvas.width + 20;
+                    y = Math.random() * canvas.height;
+                    vx = -speed;
+                    vy = (Math.random() - 0.5) * 2;
+                    break;
+                case 2: // Bottom
+                    x = Math.random() * canvas.width;
+                    y = canvas.height + 20;
+                    vx = (Math.random() - 0.5) * 2;
+                    vy = -speed;
+                    break;
+                case 3: // Left
+                    x = -20;
+                    y = Math.random() * canvas.height;
+                    vx = speed;
+                    vy = (Math.random() - 0.5) * 2;
+                    break;
+            }
+
+            const size = 15 + Math.random() * 20;
+            enemies.push({ x, y, vx, vy, size, rotation: 0 });
+        }
+
+        function drawPlayer() {
+            // Glow effect
+            const gradient = ctx.createRadialGradient(player.x, player.y, 0, player.x, player.y, player.radius * 2);
+            gradient.addColorStop(0, 'rgba(0, 255, 0, 0.8)');
+            gradient.addColorStop(0.5, 'rgba(0, 255, 0, 0.3)');
+            gradient.addColorStop(1, 'rgba(0, 255, 0, 0)');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(player.x - player.radius * 2, player.y - player.radius * 2, player.radius * 4, player.radius * 4);
+
+            // Player
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.strokeStyle = '#00cc00';
+            ctx.lineWidth = 3;
+            ctx.stroke();
+        }
+
+        function drawEnemies() {
+            enemies.forEach(e => {
+                ctx.save();
+                ctx.translate(e.x, e.y);
+                ctx.rotate(e.rotation);
+
+                ctx.fillStyle = '#ff4444';
+                ctx.fillRect(-e.size / 2, -e.size / 2, e.size, e.size);
+
+                ctx.strokeStyle = '#cc0000';
+                ctx.lineWidth = 2;
+                ctx.strokeRect(-e.size / 2, -e.size / 2, e.size, e.size);
+
+                ctx.restore();
+            });
+        }
+
+        function update() {
+            // Update enemies
+            enemies.forEach(e => {
+                e.x += e.vx;
+                e.y += e.vy;
+                e.rotation += 0.05;
+            });
+
+            // Remove off-screen enemies
+            enemies = enemies.filter(e =>
+                e.x > -50 && e.x < canvas.width + 50 &&
+                e.y > -50 && e.y < canvas.height + 50
+            );
+
+            // Spawn enemies
+            if (Math.random() < spawnRate) {
+                spawnEnemy();
+            }
+
+            // Increase difficulty
+            spawnRate = 0.02 + time * 0.002;
+
+            // Check collisions
+            for (const e of enemies) {
+                const dx = player.x - e.x;
+                const dy = player.y - e.y;
+                const dist = Math.sqrt(dx * dx + dy * dy);
+
+                if (dist < player.radius + e.size * 0.6) {
+                    gameOver();
+                    return;
+                }
+            }
+
+            // Update time
+            time += 1 / 60;
+            document.getElementById('time').textContent = time.toFixed(1);
+        }
+
+        function gameOver() {
+            gameRunning = false;
+
+            if (time > bestTime) {
+                bestTime = time;
+                localStorage.setItem('dodgeBest', bestTime.toFixed(1));
+                document.getElementById('best').textContent = bestTime.toFixed(1);
+            }
+
+            document.getElementById('finalTime').textContent = time.toFixed(1);
+            document.getElementById('gameover').classList.remove('hidden');
+        }
+
+        function startGame() {
+            player = { x: 250, y: 250, radius: 15 };
+            enemies = [];
+            time = 0;
+            spawnRate = 0.02;
+            gameRunning = true;
+
+            document.getElementById('time').textContent = '0.0';
+            document.getElementById('start').classList.add('hidden');
+            document.getElementById('gameover').classList.add('hidden');
+
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            // Background
+            ctx.fillStyle = '#1a1a2e';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Grid pattern
+            ctx.strokeStyle = '#2a2a4e';
+            ctx.lineWidth = 1;
+            for (let x = 0; x < canvas.width; x += 50) {
+                ctx.beginPath();
+                ctx.moveTo(x, 0);
+                ctx.lineTo(x, canvas.height);
+                ctx.stroke();
+            }
+            for (let y = 0; y < canvas.height; y += 50) {
+                ctx.beginPath();
+                ctx.moveTo(0, y);
+                ctx.lineTo(canvas.width, y);
+                ctx.stroke();
+            }
+
+            update();
+            drawEnemies();
+            drawPlayer();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Mouse control
+        canvas.addEventListener('mousemove', (e) => {
+            if (!gameRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, e.clientX - rect.left));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, e.clientY - rect.top));
+        });
+
+        // Touch control
+        canvas.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            if (!gameRunning) return;
+            const rect = canvas.getBoundingClientRect();
+            const touch = e.touches[0];
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, touch.clientX - rect.left));
+            player.y = Math.max(player.radius, Math.min(canvas.height - player.radius, touch.clientY - rect.top));
+        });
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

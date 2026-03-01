@@ -1,0 +1,277 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>数字华容道</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 10px 20px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(4, 80px);
+            gap: 8px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+        }
+
+        .tile {
+            width: 80px;
+            height: 80px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 28px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.15s;
+            user-select: none;
+        }
+
+        .tile:not(.empty):hover {
+            transform: scale(1.05);
+        }
+
+        .tile:not(.empty) {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.3);
+        }
+
+        .tile.empty {
+            background: rgba(255, 255, 255, 0.05);
+            cursor: default;
+        }
+
+        .btn {
+            margin-top: 25px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #1e3c72;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+            transition: transform 0.2s;
+        }
+
+        .btn:hover {
+            transform: scale(1.05);
+        }
+
+        .win-overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.8);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .win-overlay.hidden {
+            display: none;
+        }
+
+        .win-overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #22c55e;
+        }
+
+        .win-overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🔢 数字华容道</h1>
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value" id="moves">0</div>
+            <div class="stat-label">步数</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="timer">0:00</div>
+            <div class="stat-label">时间</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="best">-</div>
+            <div class="stat-label">最佳</div>
+        </div>
+    </div>
+    <div class="board" id="board"></div>
+    <button class="btn" onclick="initGame()">🔄 重新开始</button>
+
+    <div class="win-overlay hidden" id="winOverlay">
+        <h2>🎉 恭喜完成!</h2>
+        <p>步数: <span id="finalMoves">0</span></p>
+        <p>用时: <span id="finalTime">0:00</span></p>
+        <button class="btn" onclick="initGame()">再来一局</button>
+    </div>
+
+    <script>
+        let tiles = [];
+        let emptyIndex = 15;
+        let moves = 0;
+        let seconds = 0;
+        let timer = null;
+        let gameWon = false;
+        let bestMoves = localStorage.getItem('puzzle15Best') || null;
+
+        function initGame() {
+            tiles = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 0];
+            emptyIndex = 15;
+            moves = 0;
+            seconds = 0;
+            gameWon = false;
+
+            document.getElementById('moves').textContent = '0';
+            document.getElementById('timer').textContent = '0:00';
+            document.getElementById('winOverlay').classList.add('hidden');
+
+            if (bestMoves) {
+                document.getElementById('best').textContent = bestMoves;
+            }
+
+            // Shuffle
+            for (let i = 0; i < 200; i++) {
+                const neighbors = getMovableTiles();
+                const randomNeighbor = neighbors[Math.floor(Math.random() * neighbors.length)];
+                swapTiles(randomNeighbor, emptyIndex);
+            }
+
+            if (timer) clearInterval(timer);
+            timer = setInterval(() => {
+                if (!gameWon) {
+                    seconds++;
+                    const mins = Math.floor(seconds / 60);
+                    const secs = seconds % 60;
+                    document.getElementById('timer').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                }
+            }, 1000);
+
+            renderBoard();
+        }
+
+        function getMovableTiles() {
+            const row = Math.floor(emptyIndex / 4);
+            const col = emptyIndex % 4;
+            const neighbors = [];
+
+            if (row > 0) neighbors.push(emptyIndex - 4);
+            if (row < 3) neighbors.push(emptyIndex + 4);
+            if (col > 0) neighbors.push(emptyIndex - 1);
+            if (col < 3) neighbors.push(emptyIndex + 1);
+
+            return neighbors;
+        }
+
+        function swapTiles(from, to) {
+            [tiles[from], tiles[to]] = [tiles[to], tiles[from]];
+            emptyIndex = from;
+        }
+
+        function handleClick(index) {
+            if (gameWon) return;
+
+            const neighbors = getMovableTiles();
+            if (neighbors.includes(index)) {
+                swapTiles(index, emptyIndex);
+                moves++;
+                document.getElementById('moves').textContent = moves;
+                renderBoard();
+                checkWin();
+            }
+        }
+
+        function renderBoard() {
+            const board = document.getElementById('board');
+            board.innerHTML = '';
+
+            tiles.forEach((num, i) => {
+                const tile = document.createElement('div');
+                tile.className = 'tile' + (num === 0 ? ' empty' : '');
+                tile.textContent = num || '';
+                tile.onclick = () => handleClick(i);
+                board.appendChild(tile);
+            });
+        }
+
+        function checkWin() {
+            const won = tiles.every((num, i) => {
+                if (i === 15) return num === 0;
+                return num === i + 1;
+            });
+
+            if (won) {
+                gameWon = true;
+                clearInterval(timer);
+
+                if (!bestMoves || moves < bestMoves) {
+                    bestMoves = moves;
+                    localStorage.setItem('puzzle15Best', bestMoves);
+                    document.getElementById('best').textContent = bestMoves;
+                }
+
+                const mins = Math.floor(seconds / 60);
+                const secs = seconds % 60;
+                document.getElementById('finalMoves').textContent = moves;
+                document.getElementById('finalTime').textContent = `${mins}:${secs.toString().padStart(2, '0')}`;
+                document.getElementById('winOverlay').classList.remove('hidden');
+            }
+        }
+
+        initGame();
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

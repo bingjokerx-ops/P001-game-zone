@@ -1,0 +1,341 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>跳跃忍者</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #1a1a2e;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .hud {
+            position: fixed;
+            top: 20px;
+            display: flex;
+            gap: 40px;
+            color: white;
+            font-size: 24px;
+        }
+
+        #gameCanvas {
+            display: block;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            font-size: 20px;
+            background: #ff4757;
+            color: white;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hud">
+        <div>🏆 <span id="score">0</span></div>
+        <div style="color:#ffd700;">最高: <span id="best">0</span></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="start" class="overlay">
+        <h2>🥷 跳跃忍者</h2>
+        <p>点击或按空格跳跃</p>
+        <p>跳上平台，不断向上!</p>
+        <button class="btn" onclick="startGame()">开始游戏</button>
+    </div>
+
+    <div id="gameover" class="overlay hidden">
+        <h2>💀 坠落了!</h2>
+        <p>得分: <span id="finalScore">0</span></p>
+        <button class="btn" onclick="startGame()">再来一次</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 400;
+        canvas.height = 600;
+
+        let player = { x: 200, y: 500, vx: 0, vy: 0, width: 30, height: 40 };
+        let platforms = [];
+        let score = 0;
+        let gameRunning = false;
+        let cameraY = 0;
+        let best = localStorage.getItem('ninjaJumpBest') || 0;
+        document.getElementById('best').textContent = best;
+
+        const gravity = 0.4;
+        const jumpForce = -12;
+        const moveSpeed = 8;
+
+        function spawnPlatform(y) {
+            const types = ['normal', 'moving', 'breaking'];
+            const type = score < 500 ? 'normal' :
+                (Math.random() < 0.7 ? 'normal' : types[Math.floor(Math.random() * 3)]);
+
+            platforms.push({
+                x: 30 + Math.random() * (canvas.width - 100),
+                y: y,
+                width: 70,
+                height: 15,
+                type: type,
+                vx: type === 'moving' ? (Math.random() > 0.5 ? 2 : -2) : 0,
+                broken: false
+            });
+        }
+
+        function initPlatforms() {
+            platforms = [];
+            for (let y = canvas.height - 50; y > -200; y -= 60 + Math.random() * 30) {
+                spawnPlatform(y);
+            }
+        }
+
+        function drawPlayer() {
+            const screenY = player.y - cameraY;
+
+            ctx.save();
+            ctx.translate(player.x, screenY);
+
+            // Body
+            ctx.fillStyle = '#2d3436';
+            ctx.fillRect(-player.width / 2, -player.height, player.width, player.height);
+
+            // Mask
+            ctx.fillStyle = '#222';
+            ctx.fillRect(-player.width / 2 + 2, -player.height + 5, player.width - 4, 15);
+
+            // Eyes
+            ctx.fillStyle = '#fff';
+            ctx.fillRect(-8, -player.height + 8, 6, 4);
+            ctx.fillRect(2, -player.height + 8, 6, 4);
+
+            // Scarf
+            ctx.fillStyle = '#ff4757';
+            ctx.fillRect(-player.width / 2, -player.height + 18, player.width, 5);
+            if (player.vy < 0) {
+                ctx.fillRect(player.width / 2, -player.height + 18, 15, 4);
+            }
+
+            ctx.restore();
+        }
+
+        function drawPlatforms() {
+            platforms.forEach(p => {
+                if (p.broken) return;
+
+                const screenY = p.y - cameraY;
+                if (screenY < -20 || screenY > canvas.height + 20) return;
+
+                ctx.fillStyle = p.type === 'normal' ? '#00b894' :
+                    p.type === 'moving' ? '#0984e3' : '#d63031';
+
+                ctx.beginPath();
+                ctx.roundRect(p.x, screenY, p.width, p.height, 5);
+                ctx.fill();
+
+                // Shine
+                ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                ctx.fillRect(p.x + 5, screenY + 3, p.width - 10, 4);
+            });
+        }
+
+        function update() {
+            // Horizontal movement with keyboard
+            if (keys.left) player.vx = -moveSpeed;
+            else if (keys.right) player.vx = moveSpeed;
+            else player.vx *= 0.9;
+
+            // Apply physics
+            player.vy += gravity;
+            player.x += player.vx;
+            player.y += player.vy;
+
+            // Wrap around screen
+            if (player.x < -player.width / 2) player.x = canvas.width + player.width / 2;
+            if (player.x > canvas.width + player.width / 2) player.x = -player.width / 2;
+
+            // Move platforms
+            platforms.forEach(p => {
+                if (p.type === 'moving') {
+                    p.x += p.vx;
+                    if (p.x < 0 || p.x > canvas.width - p.width) p.vx *= -1;
+                }
+            });
+
+            // Platform collision (only when falling)
+            if (player.vy > 0) {
+                platforms.forEach(p => {
+                    if (p.broken) return;
+                    const screenY = p.y - cameraY;
+                    if (player.x > p.x - player.width / 2 &&
+                        player.x < p.x + p.width + player.width / 2 &&
+                        player.y - cameraY >= screenY - 5 &&
+                        player.y - cameraY <= screenY + 10) {
+
+                        if (p.type === 'breaking') {
+                            p.broken = true;
+                        } else {
+                            player.vy = jumpForce;
+                        }
+                    }
+                });
+            }
+
+            // Camera follows player (only up)
+            if (player.y - cameraY < 200) {
+                cameraY = player.y - 200;
+            }
+
+            // Update score
+            const newScore = Math.max(score, Math.floor(-cameraY / 10));
+            if (newScore > score) {
+                score = newScore;
+                document.getElementById('score').textContent = score;
+            }
+
+            // Generate new platforms
+            while (platforms[platforms.length - 1].y > cameraY - 100) {
+                const lastY = platforms[platforms.length - 1].y;
+                spawnPlatform(lastY - 60 - Math.random() * 40);
+            }
+
+            // Remove old platforms
+            platforms = platforms.filter(p => p.y - cameraY < canvas.height + 50);
+
+            // Game over
+            if (player.y - cameraY > canvas.height + 50) {
+                gameOver();
+            }
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            if (score > best) {
+                best = score;
+                localStorage.setItem('ninjaJumpBest', best);
+                document.getElementById('best').textContent = best;
+            }
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('gameover').classList.remove('hidden');
+        }
+
+        function startGame() {
+            player = { x: 200, y: 500, vx: 0, vy: 0, width: 30, height: 40 };
+            cameraY = 0;
+            score = 0;
+            gameRunning = true;
+
+            document.getElementById('score').textContent = '0';
+            document.getElementById('start').classList.add('hidden');
+            document.getElementById('gameover').classList.add('hidden');
+
+            initPlatforms();
+
+            // Initial jump
+            player.vy = jumpForce;
+
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            // Background
+            const gradient = ctx.createLinearGradient(0, 0, 0, canvas.height);
+            gradient.addColorStop(0, '#0f0f23');
+            gradient.addColorStop(1, '#1a1a2e');
+            ctx.fillStyle = gradient;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Stars
+            ctx.fillStyle = '#fff';
+            for (let i = 0; i < 30; i++) {
+                const x = (i * 137 + cameraY * 0.1) % canvas.width;
+                const y = (i * 89) % canvas.height;
+                ctx.fillRect(x, y, 2, 2);
+            }
+
+            update();
+            drawPlatforms();
+            drawPlayer();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        const keys = { left: false, right: false };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = true;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = true;
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key === 'ArrowLeft' || e.key === 'a') keys.left = false;
+            if (e.key === 'ArrowRight' || e.key === 'd') keys.right = false;
+        });
+
+        // Touch controls
+        canvas.addEventListener('touchstart', (e) => {
+            const touch = e.touches[0];
+            const rect = canvas.getBoundingClientRect();
+            const x = touch.clientX - rect.left;
+            if (x < canvas.width / 2) keys.left = true;
+            else keys.right = true;
+        });
+
+        canvas.addEventListener('touchend', () => {
+            keys.left = false;
+            keys.right = false;
+        });
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

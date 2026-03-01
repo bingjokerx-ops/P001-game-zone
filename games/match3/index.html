@@ -1,0 +1,318 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>消消乐</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            color: white;
+        }
+
+        h1 {
+            margin-bottom: 20px;
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 20px;
+        }
+
+        .stat {
+            text-align: center;
+            padding: 10px 25px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 10px;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            opacity: 0.8;
+        }
+
+        .board {
+            display: grid;
+            grid-template-columns: repeat(8, 50px);
+            gap: 4px;
+            padding: 15px;
+            background: rgba(0, 0, 0, 0.3);
+            border-radius: 15px;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 32px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+            user-select: none;
+        }
+
+        .cell:hover {
+            transform: scale(1.1);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        .cell.selected {
+            transform: scale(1.15);
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.8);
+            background: rgba(255, 255, 255, 0.3);
+        }
+
+        .cell.matched {
+            animation: pop 0.3s ease-out;
+        }
+
+        @keyframes pop {
+            0% {
+                transform: scale(1);
+            }
+
+            50% {
+                transform: scale(1.3);
+            }
+
+            100% {
+                transform: scale(0);
+                opacity: 0;
+            }
+        }
+
+        .btn {
+            margin-top: 20px;
+            padding: 12px 30px;
+            font-size: 16px;
+            background: rgba(255, 255, 255, 0.9);
+            color: #764ba2;
+            border: none;
+            border-radius: 25px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>💎 消消乐</h1>
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value" id="score">0</div>
+            <div class="stat-label">分数</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="moves">30</div>
+            <div class="stat-label">步数</div>
+        </div>
+    </div>
+    <div class="board" id="board"></div>
+    <button class="btn" onclick="initGame()">🔄 重新开始</button>
+
+    <script>
+        const gems = ['🔴', '🟡', '🟢', '🔵', '🟣', '🟠'];
+        const ROWS = 8;
+        const COLS = 8;
+        let board = [];
+        let selected = null;
+        let score = 0;
+        let moves = 30;
+        let isProcessing = false;
+
+        function initGame() {
+            score = 0;
+            moves = 30;
+            isProcessing = false;
+            selected = null;
+            document.getElementById('score').textContent = '0';
+            document.getElementById('moves').textContent = '30';
+
+            // Create board without initial matches
+            do {
+                board = [];
+                for (let r = 0; r < ROWS; r++) {
+                    board[r] = [];
+                    for (let c = 0; c < COLS; c++) {
+                        let gem;
+                        do {
+                            gem = gems[Math.floor(Math.random() * gems.length)];
+                        } while (
+                            (c >= 2 && board[r][c - 1] === gem && board[r][c - 2] === gem) ||
+                            (r >= 2 && board[r - 1][c] === gem && board[r - 2][c] === gem)
+                        );
+                        board[r][c] = gem;
+                    }
+                }
+            } while (findMatches().length > 0);
+
+            renderBoard();
+        }
+
+        function renderBoard() {
+            const boardEl = document.getElementById('board');
+            boardEl.innerHTML = '';
+
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    const cell = document.createElement('div');
+                    cell.className = 'cell';
+                    cell.textContent = board[r][c] || '';
+                    cell.dataset.row = r;
+                    cell.dataset.col = c;
+                    cell.onclick = () => handleClick(r, c);
+                    if (selected && selected.row === r && selected.col === c) {
+                        cell.classList.add('selected');
+                    }
+                    boardEl.appendChild(cell);
+                }
+            }
+        }
+
+        function handleClick(row, col) {
+            if (isProcessing || moves <= 0) return;
+
+            if (!selected) {
+                selected = { row, col };
+                renderBoard();
+            } else {
+                // Check if adjacent
+                const dr = Math.abs(selected.row - row);
+                const dc = Math.abs(selected.col - col);
+
+                if ((dr === 1 && dc === 0) || (dr === 0 && dc === 1)) {
+                    // Swap
+                    swap(selected.row, selected.col, row, col);
+                    const matches = findMatches();
+
+                    if (matches.length > 0) {
+                        moves--;
+                        document.getElementById('moves').textContent = moves;
+                        processMatches();
+                    } else {
+                        // Swap back
+                        swap(selected.row, selected.col, row, col);
+                    }
+                }
+                selected = null;
+                renderBoard();
+            }
+        }
+
+        function swap(r1, c1, r2, c2) {
+            const temp = board[r1][c1];
+            board[r1][c1] = board[r2][c2];
+            board[r2][c2] = temp;
+        }
+
+        function findMatches() {
+            const matches = new Set();
+
+            // Horizontal matches
+            for (let r = 0; r < ROWS; r++) {
+                for (let c = 0; c < COLS - 2; c++) {
+                    if (board[r][c] && board[r][c] === board[r][c + 1] && board[r][c] === board[r][c + 2]) {
+                        matches.add(`${r},${c}`);
+                        matches.add(`${r},${c + 1}`);
+                        matches.add(`${r},${c + 2}`);
+                    }
+                }
+            }
+
+            // Vertical matches
+            for (let r = 0; r < ROWS - 2; r++) {
+                for (let c = 0; c < COLS; c++) {
+                    if (board[r][c] && board[r][c] === board[r + 1][c] && board[r][c] === board[r + 2][c]) {
+                        matches.add(`${r},${c}`);
+                        matches.add(`${r + 1},${c}`);
+                        matches.add(`${r + 2},${c}`);
+                    }
+                }
+            }
+
+            return Array.from(matches).map(s => {
+                const [r, c] = s.split(',').map(Number);
+                return { row: r, col: c };
+            });
+        }
+
+        async function processMatches() {
+            isProcessing = true;
+
+            let matches = findMatches();
+            while (matches.length > 0) {
+                // Add score
+                score += matches.length * 10;
+                document.getElementById('score').textContent = score;
+
+                // Remove matched gems
+                matches.forEach(({ row, col }) => {
+                    board[row][col] = null;
+                });
+                renderBoard();
+
+                await sleep(300);
+
+                // Drop gems
+                for (let c = 0; c < COLS; c++) {
+                    let emptyRow = ROWS - 1;
+                    for (let r = ROWS - 1; r >= 0; r--) {
+                        if (board[r][c]) {
+                            if (r !== emptyRow) {
+                                board[emptyRow][c] = board[r][c];
+                                board[r][c] = null;
+                            }
+                            emptyRow--;
+                        }
+                    }
+                    // Fill empty cells
+                    for (let r = emptyRow; r >= 0; r--) {
+                        board[r][c] = gems[Math.floor(Math.random() * gems.length)];
+                    }
+                }
+
+                renderBoard();
+                await sleep(300);
+
+                matches = findMatches();
+            }
+
+            isProcessing = false;
+
+            if (moves <= 0) {
+                alert(`游戏结束! 最终得分: ${score}`);
+            }
+        }
+
+        function sleep(ms) {
+            return new Promise(resolve => setTimeout(resolve, ms));
+        }
+
+        initGame();
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

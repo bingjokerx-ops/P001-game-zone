@@ -1,0 +1,282 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>颜色切换</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            transition: background 0.3s;
+        }
+
+        h1 {
+            color: white;
+            margin-bottom: 20px;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.3);
+        }
+
+        .stats {
+            display: flex;
+            gap: 30px;
+            margin-bottom: 30px;
+        }
+
+        .stat {
+            color: white;
+            text-align: center;
+            padding: 15px 25px;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 15px;
+        }
+
+        .stat-value {
+            font-size: 36px;
+            font-weight: bold;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.8;
+        }
+
+        .color-display {
+            font-size: 72px;
+            font-weight: bold;
+            padding: 30px 60px;
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 20px;
+            margin-bottom: 40px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+        }
+
+        .buttons {
+            display: flex;
+            gap: 20px;
+            flex-wrap: wrap;
+            justify-content: center;
+            max-width: 400px;
+        }
+
+        .color-btn {
+            width: 150px;
+            height: 60px;
+            border: none;
+            border-radius: 15px;
+            font-size: 20px;
+            font-weight: bold;
+            cursor: pointer;
+            color: white;
+            text-shadow: 1px 1px 2px rgba(0, 0, 0, 0.3);
+            transition: transform 0.2s;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.2);
+        }
+
+        .color-btn:hover {
+            transform: scale(1.05);
+        }
+
+        .color-btn:active {
+            transform: scale(0.95);
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 40px;
+            font-size: 20px;
+            background: white;
+            color: #333;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .feedback {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 100px;
+            pointer-events: none;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        .feedback.show {
+            opacity: 1;
+        }
+    </style>
+</head>
+
+<body>
+    <h1>🎨 颜色切换</h1>
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value" id="score">0</div>
+            <div class="stat-label">分数</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="timer">30</div>
+            <div class="stat-label">秒</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value" id="streak">0</div>
+            <div class="stat-label">连击</div>
+        </div>
+    </div>
+    <div class="color-display" id="colorText">红色</div>
+    <div class="buttons" id="buttons"></div>
+    <div class="feedback" id="feedback"></div>
+
+    <div id="start" class="overlay">
+        <h2>🎨 颜色切换</h2>
+        <p>选择文字的<b>颜色</b>，而不是文字内容!</p>
+        <button class="btn" onclick="startGame()">开始游戏</button>
+    </div>
+
+    <div id="result" class="overlay hidden">
+        <h2>游戏结束!</h2>
+        <p>最终分数: <span id="finalScore">0</span></p>
+        <p>最高连击: <span id="maxStreak">0</span></p>
+        <button class="btn" onclick="startGame()">再来一次</button>
+    </div>
+
+    <script>
+        const colors = [
+            { name: '红色', color: '#e74c3c' },
+            { name: '蓝色', color: '#3498db' },
+            { name: '绿色', color: '#2ecc71' },
+            { name: '黄色', color: '#f1c40f' },
+            { name: '紫色', color: '#9b59b6' },
+            { name: '橙色', color: '#e67e22' }
+        ];
+
+        let score = 0;
+        let streak = 0;
+        let maxStreak = 0;
+        let timeLeft = 30;
+        let timer = null;
+        let currentColor = null;
+
+        function shuffle(arr) {
+            return arr.sort(() => Math.random() - 0.5);
+        }
+
+        function generateRound() {
+            const textColor = colors[Math.floor(Math.random() * colors.length)];
+            let displayColor;
+            do {
+                displayColor = colors[Math.floor(Math.random() * colors.length)];
+            } while (displayColor.name === textColor.name && Math.random() > 0.3);
+
+            currentColor = displayColor;
+            const colorText = document.getElementById('colorText');
+            colorText.textContent = textColor.name;
+            colorText.style.color = displayColor.color;
+
+            document.body.style.background = `linear-gradient(135deg, ${displayColor.color}88 0%, ${textColor.color}88 100%)`;
+
+            const shuffled = shuffle([...colors]);
+            const buttons = document.getElementById('buttons');
+            buttons.innerHTML = '';
+            shuffled.forEach(c => {
+                const btn = document.createElement('button');
+                btn.className = 'color-btn';
+                btn.textContent = c.name;
+                btn.style.background = c.color;
+                btn.onclick = () => checkAnswer(c);
+                buttons.appendChild(btn);
+            });
+        }
+
+        function checkAnswer(selected) {
+            const feedback = document.getElementById('feedback');
+            if (selected.name === currentColor.name) {
+                score += 10 + streak * 2;
+                streak++;
+                if (streak > maxStreak) maxStreak = streak;
+                feedback.textContent = '✓';
+                feedback.style.color = '#2ecc71';
+            } else {
+                streak = 0;
+                feedback.textContent = '✗';
+                feedback.style.color = '#e74c3c';
+            }
+            feedback.classList.add('show');
+            setTimeout(() => feedback.classList.remove('show'), 300);
+            updateStats();
+            generateRound();
+        }
+
+        function updateStats() {
+            document.getElementById('score').textContent = score;
+            document.getElementById('streak').textContent = streak;
+            document.getElementById('timer').textContent = timeLeft;
+        }
+
+        function startGame() {
+            score = 0;
+            streak = 0;
+            maxStreak = 0;
+            timeLeft = 30;
+            document.getElementById('start').classList.add('hidden');
+            document.getElementById('result').classList.add('hidden');
+            updateStats();
+            generateRound();
+            if (timer) clearInterval(timer);
+            timer = setInterval(() => {
+                timeLeft--;
+                document.getElementById('timer').textContent = timeLeft;
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+        }
+
+        function endGame() {
+            clearInterval(timer);
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('maxStreak').textContent = maxStreak;
+            document.getElementById('result').classList.remove('hidden');
+        }
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>

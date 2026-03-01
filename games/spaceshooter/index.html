@@ -1,0 +1,409 @@
+﻿<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>太空射击</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            min-height: 100vh;
+            background: #000;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            font-family: 'Segoe UI', Arial, sans-serif;
+            overflow: hidden;
+        }
+
+        .hud {
+            position: fixed;
+            top: 20px;
+            width: 100%;
+            display: flex;
+            justify-content: center;
+            gap: 50px;
+            color: white;
+            font-size: 20px;
+            z-index: 100;
+        }
+
+        #gameCanvas {
+            display: block;
+            background: #000;
+        }
+
+        .overlay {
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.9);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            color: white;
+        }
+
+        .overlay.hidden {
+            display: none;
+        }
+
+        .overlay h2 {
+            font-size: 48px;
+            margin-bottom: 20px;
+            color: #00ff00;
+        }
+
+        .overlay p {
+            font-size: 24px;
+            margin: 10px 0;
+        }
+
+        .btn {
+            margin-top: 30px;
+            padding: 15px 50px;
+            font-size: 20px;
+            background: #00ff00;
+            color: #000;
+            border: none;
+            border-radius: 30px;
+            cursor: pointer;
+            font-weight: bold;
+        }
+
+        .lives {
+            color: #ff4444;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="hud">
+        <div>分数: <span id="score">0</span></div>
+        <div>波次: <span id="wave">1</span></div>
+        <div class="lives">❤️ <span id="lives">3</span></div>
+    </div>
+    <canvas id="gameCanvas"></canvas>
+
+    <div id="start" class="overlay">
+        <h2>🚀 太空射击</h2>
+        <p>← → 移动飞船</p>
+        <p>空格 发射子弹</p>
+        <p>消灭所有外星人!</p>
+        <button class="btn" onclick="startGame()">开始游戏</button>
+    </div>
+
+    <div id="gameover" class="overlay hidden">
+        <h2>游戏结束</h2>
+        <p>最终分数: <span id="finalScore">0</span></p>
+        <p>到达波次: <span id="finalWave">1</span></p>
+        <button class="btn" onclick="startGame()">再来一次</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        canvas.width = 600;
+        canvas.height = 500;
+
+        let player = { x: 300, y: 450, width: 50, height: 30 };
+        let bullets = [];
+        let enemies = [];
+        let enemyBullets = [];
+        let particles = [];
+        let stars = [];
+
+        let score = 0;
+        let lives = 3;
+        let wave = 1;
+        let gameRunning = false;
+        let keys = {};
+
+        // Create stars
+        for (let i = 0; i < 100; i++) {
+            stars.push({
+                x: Math.random() * canvas.width,
+                y: Math.random() * canvas.height,
+                size: Math.random() * 2,
+                speed: 0.5 + Math.random()
+            });
+        }
+
+        function drawStars() {
+            ctx.fillStyle = '#fff';
+            stars.forEach(star => {
+                ctx.beginPath();
+                ctx.arc(star.x, star.y, star.size, 0, Math.PI * 2);
+                ctx.fill();
+                star.y += star.speed;
+                if (star.y > canvas.height) {
+                    star.y = 0;
+                    star.x = Math.random() * canvas.width;
+                }
+            });
+        }
+
+        function drawPlayer() {
+            ctx.save();
+            ctx.translate(player.x, player.y);
+
+            // Body
+            ctx.fillStyle = '#00ff00';
+            ctx.beginPath();
+            ctx.moveTo(0, -15);
+            ctx.lineTo(-25, 15);
+            ctx.lineTo(25, 15);
+            ctx.closePath();
+            ctx.fill();
+
+            // Cockpit
+            ctx.fillStyle = '#00aaff';
+            ctx.beginPath();
+            ctx.arc(0, 0, 8, 0, Math.PI * 2);
+            ctx.fill();
+
+            // Engine glow
+            ctx.fillStyle = '#ff6600';
+            ctx.beginPath();
+            ctx.moveTo(-10, 15);
+            ctx.lineTo(0, 25 + Math.random() * 5);
+            ctx.lineTo(10, 15);
+            ctx.closePath();
+            ctx.fill();
+
+            ctx.restore();
+        }
+
+        function drawBullets() {
+            ctx.fillStyle = '#00ff00';
+            bullets.forEach(b => {
+                ctx.fillRect(b.x - 2, b.y, 4, 15);
+            });
+
+            ctx.fillStyle = '#ff0000';
+            enemyBullets.forEach(b => {
+                ctx.beginPath();
+                ctx.arc(b.x, b.y, 4, 0, Math.PI * 2);
+                ctx.fill();
+            });
+        }
+
+        function drawEnemies() {
+            enemies.forEach(e => {
+                ctx.save();
+                ctx.translate(e.x, e.y);
+
+                // Body
+                ctx.fillStyle = e.color;
+                ctx.beginPath();
+                ctx.arc(0, 0, 20, 0, Math.PI * 2);
+                ctx.fill();
+
+                // Eyes
+                ctx.fillStyle = '#fff';
+                ctx.beginPath();
+                ctx.arc(-7, -3, 5, 0, Math.PI * 2);
+                ctx.arc(7, -3, 5, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.fillStyle = '#000';
+                ctx.beginPath();
+                ctx.arc(-7, -3, 2, 0, Math.PI * 2);
+                ctx.arc(7, -3, 2, 0, Math.PI * 2);
+                ctx.fill();
+
+                ctx.restore();
+            });
+        }
+
+        function drawParticles() {
+            particles.forEach((p, i) => {
+                ctx.fillStyle = p.color;
+                ctx.globalAlpha = p.life;
+                ctx.beginPath();
+                ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            });
+        }
+
+        function spawnWave() {
+            const rows = Math.min(2 + Math.floor(wave / 2), 4);
+            const cols = Math.min(5 + wave, 10);
+            const colors = ['#ff4444', '#ff8800', '#ffff00', '#ff44ff'];
+
+            for (let r = 0; r < rows; r++) {
+                for (let c = 0; c < cols; c++) {
+                    enemies.push({
+                        x: 60 + c * 50,
+                        y: 60 + r * 45,
+                        color: colors[r % colors.length],
+                        dir: 1
+                    });
+                }
+            }
+        }
+
+        function createExplosion(x, y, color) {
+            for (let i = 0; i < 15; i++) {
+                particles.push({
+                    x, y,
+                    vx: (Math.random() - 0.5) * 8,
+                    vy: (Math.random() - 0.5) * 8,
+                    size: 2 + Math.random() * 4,
+                    color,
+                    life: 1
+                });
+            }
+        }
+
+        function shoot() {
+            bullets.push({ x: player.x, y: player.y - 20 });
+        }
+
+        function update() {
+            // Player movement
+            if (keys['ArrowLeft'] && player.x > 30) player.x -= 6;
+            if (keys['ArrowRight'] && player.x < canvas.width - 30) player.x += 6;
+
+            // Update bullets
+            bullets.forEach(b => b.y -= 10);
+            bullets = bullets.filter(b => b.y > 0);
+
+            enemyBullets.forEach(b => b.y += 5);
+            enemyBullets = enemyBullets.filter(b => b.y < canvas.height);
+
+            // Update enemies
+            let shouldReverse = false;
+            enemies.forEach(e => {
+                e.x += e.dir * (1 + wave * 0.3);
+                if (e.x < 30 || e.x > canvas.width - 30) shouldReverse = true;
+            });
+
+            if (shouldReverse) {
+                enemies.forEach(e => {
+                    e.dir *= -1;
+                    e.y += 20;
+                });
+            }
+
+            // Enemy shooting
+            if (Math.random() < 0.02 * wave && enemies.length > 0) {
+                const shooter = enemies[Math.floor(Math.random() * enemies.length)];
+                enemyBullets.push({ x: shooter.x, y: shooter.y + 20 });
+            }
+
+            // Bullet collision with enemies
+            bullets.forEach((b, bi) => {
+                enemies.forEach((e, ei) => {
+                    if (Math.hypot(b.x - e.x, b.y - e.y) < 25) {
+                        createExplosion(e.x, e.y, e.color);
+                        enemies.splice(ei, 1);
+                        bullets.splice(bi, 1);
+                        score += 100;
+                    }
+                });
+            });
+
+            // Enemy bullet collision with player
+            enemyBullets.forEach((b, i) => {
+                if (Math.hypot(b.x - player.x, b.y - player.y) < 25) {
+                    enemyBullets.splice(i, 1);
+                    lives--;
+                    createExplosion(player.x, player.y, '#00ff00');
+                    if (lives <= 0) gameOver();
+                }
+            });
+
+            // Enemy collision with player
+            enemies.forEach(e => {
+                if (e.y > player.y - 30) {
+                    gameOver();
+                }
+            });
+
+            // Update particles
+            particles.forEach(p => {
+                p.x += p.vx;
+                p.y += p.vy;
+                p.life -= 0.03;
+            });
+            particles = particles.filter(p => p.life > 0);
+
+            // Next wave
+            if (enemies.length === 0) {
+                wave++;
+                spawnWave();
+            }
+
+            // Update HUD
+            document.getElementById('score').textContent = score;
+            document.getElementById('wave').textContent = wave;
+            document.getElementById('lives').textContent = lives;
+        }
+
+        function gameOver() {
+            gameRunning = false;
+            document.getElementById('finalScore').textContent = score;
+            document.getElementById('finalWave').textContent = wave;
+            document.getElementById('gameover').classList.remove('hidden');
+        }
+
+        function startGame() {
+            player = { x: 300, y: 450, width: 50, height: 30 };
+            bullets = [];
+            enemies = [];
+            enemyBullets = [];
+            particles = [];
+            score = 0;
+            lives = 3;
+            wave = 1;
+            gameRunning = true;
+
+            document.getElementById('start').classList.add('hidden');
+            document.getElementById('gameover').classList.add('hidden');
+
+            spawnWave();
+            gameLoop();
+        }
+
+        function gameLoop() {
+            if (!gameRunning) return;
+
+            ctx.fillStyle = '#000';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            drawStars();
+            update();
+            drawParticles();
+            drawEnemies();
+            drawBullets();
+            drawPlayer();
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            keys[e.key] = true;
+            if (e.key === ' ' && gameRunning) {
+                e.preventDefault();
+                shoot();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            keys[e.key] = false;
+        });
+    </script>
+    <script src="../../js/game-i18n.js"></script>
+</body>
+
+</html>
