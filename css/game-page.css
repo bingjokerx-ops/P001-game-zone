@@ -449,6 +449,15 @@
 }
 
 /* ========== 游戏说明 ========== */
+.left-panel:has(#tab-info.active) {
+    max-height: none;
+}
+
+#tab-info {
+    height: auto;
+    overflow: visible;
+}
+
 .game-info-section {
     padding: 20px;
     border-bottom: 1px solid var(--border-color);

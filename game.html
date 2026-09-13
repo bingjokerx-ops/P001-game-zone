@@ -74,13 +74,13 @@
                 <!-- 左栏：排行榜/游戏说明切换 -->
                 <div class="left-panel">
                     <div class="panel-tabs">
-                        <button class="panel-tab active" data-tab="leaderboard" data-i18n="leaderboardTab">🏆
+                        <button class="panel-tab" data-tab="leaderboard" data-i18n="leaderboardTab">🏆
                             排行榜</button>
-                        <button class="panel-tab" data-tab="info" data-i18n="infoTab">📖 说明</button>
+                        <button class="panel-tab active" data-tab="info" data-i18n="infoTab">📖 说明</button>
                     </div>
                     <div class="panel-content">
                         <!-- 排行榜 -->
-                        <div class="tab-content active" id="tab-leaderboard">
+                        <div class="tab-content" id="tab-leaderboard">
                             <div class="leaderboard">
                                 <div class="leaderboard-header">
                                     <span class="rank-col" data-i18n="rank">排名</span>
@@ -100,14 +100,26 @@
                             </div>
                         </div>
                         <!-- 游戏说明 -->
-                        <div class="tab-content" id="tab-info">
+                        <div class="tab-content active" id="tab-info">
                             <div class="game-info-section">
                                 <h3 data-i18n="gameIntro">游戏介绍</h3>
                                 <p id="game-description">-</p>
                             </div>
                             <div class="game-info-section">
+                                <h3 data-i18n="gameplayLabel">怎么玩</h3>
+                                <p id="game-gameplay">-</p>
+                            </div>
+                            <div class="game-info-section">
                                 <h3 data-i18n="controlsLabel">操作说明</h3>
                                 <p id="game-controls">-</p>
+                            </div>
+                            <div class="game-info-section">
+                                <h3 data-i18n="scoringLabel">计分与结束</h3>
+                                <p id="game-scoring">-</p>
+                            </div>
+                            <div class="game-info-section">
+                                <h3 data-i18n="tipsLabel">新手技巧</h3>
+                                <p id="game-tips">-</p>
                             </div>
                         </div>
                     </div>
@@ -167,6 +179,7 @@
     </footer>
 
     <script src="js/games-data.js"></script>
+    <script src="js/game-guides.js"></script>
     <script>
         // 获取URL参数中的游戏ID
         const urlParams = new URLSearchParams(window.location.search);
@@ -184,6 +197,7 @@
                 rank: '排名', player: '玩家', highlights: '精彩集锦', likes: '点赞', score: '分数',
                 noLeaderboard: '🎮 暂无排行数据', beFirst: '快来成为第一个上榜的玩家吧！',
                 gameIntro: '游戏介绍', controlsLabel: '操作说明',
+                gameplayLabel: '怎么玩', scoringLabel: '计分与结束', tipsLabel: '新手技巧',
                 commentsTitle: '💬 评论区', noComments: '🍀 爱评论的人，运气不会差',
                 commentPlaceholder: '说点什么...', submit: '发表',
                 footerText: '© 2026 GameZone - 免费在线游戏平台',
@@ -201,6 +215,7 @@
                 rank: 'Rank', player: 'Player', highlights: 'Highlights', likes: 'Likes', score: 'Score',
                 noLeaderboard: '🎮 No rankings yet', beFirst: 'Be the first to make the leaderboard!',
                 gameIntro: 'About', controlsLabel: 'Controls',
+                gameplayLabel: 'How to play', scoringLabel: 'Scoring & ending', tipsLabel: 'Beginner tips',
                 commentsTitle: '💬 Comments', noComments: '🍀 Be the first to comment!',
                 commentPlaceholder: 'Say something...', submit: 'Post',
                 footerText: '© 2026 GameZone - Free Online Games',
@@ -218,6 +233,7 @@
                 rank: '順位', player: 'プレイヤー', highlights: 'ハイライト', likes: 'いいね', score: 'スコア',
                 noLeaderboard: '🎮 ランキングデータなし', beFirst: '最初のプレイヤーになろう！',
                 gameIntro: 'ゲーム紹介', controlsLabel: '操作方法',
+                gameplayLabel: '遊び方', scoringLabel: '得点と終了条件', tipsLabel: '初心者のヒント',
                 commentsTitle: '💬 コメント', noComments: '🍀 コメントを残そう',
                 commentPlaceholder: 'コメント...', submit: '投稿',
                 footerText: '© 2026 GameZone - 無料オンラインゲーム',
@@ -243,20 +259,23 @@
 
         if (game) {
             // 根据语言设置游戏内容
-            let gName = game.name, gDesc = game.description, gCtrl = game.controls;
+            let gName = game.name;
             if (gameLang === 'en') {
                 gName = game.nameEn || gName;
-                gDesc = game.descriptionEn || gDesc;
-                gCtrl = game.controlsEn || gCtrl;
             } else if (gameLang === 'ja') {
                 gName = game.nameJa || gName;
-                gDesc = game.descriptionJa || gDesc;
-                gCtrl = game.controlsJa || gCtrl;
             }
             document.title = `${gName} - GameZone`;
             document.getElementById('game-title').textContent = gName;
-            document.getElementById('game-description').textContent = gDesc;
-            document.getElementById('game-controls').textContent = gCtrl;
+
+            const guide = gameGuides[game.id]?.[gameLang] || gameGuides[game.id]?.zh;
+            if (!guide) throw new Error(`Missing game guide: ${game.id} (${gameLang})`);
+            document.documentElement.lang = { zh: 'zh-CN', en: 'en', ja: 'ja' }[gameLang] || 'zh-CN';
+            document.getElementById('game-description').textContent = guide.intro;
+            document.getElementById('game-gameplay').textContent = guide.gameplay;
+            document.getElementById('game-controls').textContent = guide.controls;
+            document.getElementById('game-scoring').textContent = guide.scoring;
+            document.getElementById('game-tips').textContent = guide.tips;
 
             // 加载游戏
             const iframe = document.getElementById('game-frame');
