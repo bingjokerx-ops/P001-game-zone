@@ -1,12 +1,7 @@
-# GameZone 爬虫规则
-# https://yoursite.com/robots.txt
-
 User-agent: *
 Allow: /
-
-# 禁止抓取测试页面
-Disallow: /test.html
-Disallow: /video-test.html
-
-# 网站地图
-Sitemap: https://yoursite.com/sitemap.xml
+Disallow: /scripts/
+Disallow: /tests/
+Disallow: /docs/
+Disallow: /work/
+Sitemap: https://gametest.online/sitemap.xml

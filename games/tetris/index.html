@@ -367,6 +367,7 @@
         }
 
         function rotate() {
+            if (gameOver || paused) return;
             const rotated = currentPiece.shape[0].map((_, i) =>
                 currentPiece.shape.map(row => row[i]).reverse()
             );
@@ -378,12 +379,14 @@
         }
 
         function move(dir) {
+            if (gameOver || paused) return;
             if (!collision(currentPiece, dir, 0)) {
                 currentPiece.x += dir;
             }
         }
 
         function drop() {
+            if (gameOver || paused) return;
             if (!collision(currentPiece, 0, 1)) {
                 currentPiece.y++;
             } else {
@@ -414,6 +417,7 @@
         }
 
         function restartGame() {
+            if (!gameOver) return;
             document.getElementById('game-over').style.display = 'none';
             createBoard();
             score = 0;
@@ -426,6 +430,8 @@
             nextPiece = randomPiece();
             updateUI();
             drawNextPiece();
+            lastDrop = performance.now();
+            requestAnimationFrame(gameLoop);
         }
 
         function gameLoop(timestamp) {
@@ -445,7 +451,7 @@
 
         // 键盘控制
         document.addEventListener('keydown', e => {
-            if (gameOver) return;
+            if (gameOver || !['ArrowLeft', 'ArrowRight', 'ArrowDown', 'ArrowUp', ' '].includes(e.key)) return;
             switch (e.key) {
                 case 'ArrowLeft': move(-1); break;
                 case 'ArrowRight': move(1); break;

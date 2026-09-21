@@ -41,6 +41,8 @@
 
         .levels {
             display: flex;
+            flex-wrap: wrap;
+            justify-content: center;
             gap: 10px;
             margin-bottom: 15px;
         }
@@ -61,6 +63,7 @@
 
         .board {
             display: grid;
+            max-width: calc(100vw - 32px);
             gap: 2px;
             padding: 10px;
             background: rgba(0, 0, 0, 0.3);
@@ -68,8 +71,9 @@
         }
 
         .cell {
-            width: 40px;
-            height: 40px;
+            width: 100%;
+            aspect-ratio: 1;
+            min-width: 0;
             display: flex;
             align-items: center;
             justify-content: center;
@@ -184,6 +188,7 @@
             <button class="control-btn" onclick="move(1,0)">➡️</button>
         </div>
     </div>
+    <button class="btn" onclick="undoMove()">↶ 撤销 / Undo</button>
     <button class="btn" onclick="loadLevel(currentLevel)">🔄 重置关卡</button>
 
     <div id="winMsg" class="win-msg hidden">
@@ -194,57 +199,11 @@
 
     <script>
         const levels = [
-            // Level 1
-            [
-                "  ###  ",
-                "  #.#  ",
-                "  # ###",
-                "###$ $.#",
-                "#. $@###",
-                "####   ",
-            ],
-            // Level 2
-            [
-                "####  ",
-                "#  ###",
-                "# $$ #",
-                "#.@. #",
-                "# $$ #",
-                "#  ###",
-                "####  "
-            ],
-            // Level 3
-            [
-                " #####",
-                "##   #",
-                "#  $ #",
-                "# $$.###",
-                "##.#   #",
-                " #.  @ #",
-                " #  ####",
-                " ####   "
-            ],
-            // Level 4
-            [
-                "  ####  ",
-                "###  ###",
-                "#   $  #",
-                "#  .#$ #",
-                "## #. ##",
-                " # $. # ",
-                " #  @ # ",
-                " ###### "
-            ],
-            // Level 5
-            [
-                "#######",
-                "#     #",
-                "# .$. #",
-                "# $.$ #",
-                "# .$. #",
-                "#  @  #",
-                "#######"
-            ]
+            ["#######", "#     #", "# @$. #", "#     #", "#######"],
+            ["#######", "# . . #", "# $ $ #", "#  @  #", "#     #", "#######"],
+            ["########", "#   .  #", "# # $  #", "# . $@ #", "#      #", "########"],
+            ["########", "#   .  #", "# # $  #", "# $  . #", "#  @   #", "########"],
+            ["########", "# . . .#", "# $ $ $#", "#  @   #", "#      #", "########"]
         ];
 
         let currentLevel = 0;
@@ -252,6 +211,8 @@
         let player = { x: 0, y: 0 };
         let moves = 0;
         let pushes = 0;
+        let history = [];
+        let won = false;
 
         function parseLevel(levelData) {
             board = [];
@@ -279,7 +240,8 @@
 
         function renderBoard() {
             const boardEl = document.getElementById('board');
-            boardEl.style.gridTemplateColumns = `repeat(${board[0].length}, 40px)`;
+            boardEl.style.gridTemplateColumns = `repeat(${board[0].length}, minmax(0, 1fr))`;
+            boardEl.style.width = `${board[0].length * 42 + 18}px`;
             boardEl.innerHTML = '';
 
             for (let y = 0; y < board.length; y++) {
@@ -312,6 +274,8 @@
         }
 
         function move(dx, dy) {
+            if (won) return;
+            const previous = JSON.stringify({ board, player, moves, pushes });
             const nx = player.x + dx;
             const ny = player.y + dy;
 
@@ -336,12 +300,25 @@
                 pushes++;
             }
 
+            history.push(previous);
             player.x = nx;
             player.y = ny;
             moves++;
 
             renderBoard();
             checkWin();
+        }
+
+        function undoMove() {
+            if (!history.length) return;
+            const previous = JSON.parse(history.pop());
+            board = previous.board;
+            player = previous.player;
+            moves = previous.moves;
+            pushes = previous.pushes;
+            won = false;
+            document.getElementById('winMsg').classList.add('hidden');
+            renderBoard();
         }
 
         function checkWin() {
@@ -351,12 +328,15 @@
                 }
             }
 
-            // Win!
+            won = true;
             document.getElementById('winMoves').textContent = moves;
             document.getElementById('winMsg').classList.remove('hidden');
         }
 
         function loadLevel(index) {
+            if (!Number.isInteger(index) || !levels[index]) throw new Error(`Unknown level: ${index}`);
+            history = [];
+            won = false;
             currentLevel = index;
             moves = 0;
             pushes = 0;
@@ -374,7 +354,6 @@
             if (currentLevel < levels.length - 1) {
                 loadLevel(currentLevel + 1);
             } else {
-                alert('恭喜通关所有关卡!');
                 loadLevel(0);
             }
         }
@@ -391,6 +370,7 @@
         }
 
         document.addEventListener('keydown', (e) => {
+            if (['ArrowUp', 'ArrowDown', 'ArrowLeft', 'ArrowRight'].includes(e.key)) e.preventDefault();
             switch (e.key) {
                 case 'ArrowUp': case 'w': move(0, -1); break;
                 case 'ArrowDown': case 's': move(0, 1); break;

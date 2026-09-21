@@ -198,9 +198,10 @@
             <button class="face-btn" id="face-btn" onclick="initGame()">😊</button>
             <div class="counter" id="timer">000</div>
         </div>
-        <div class="board" id="board"></div>
+        <div style="max-width:calc(100vw - 48px);overflow:auto"><div class="board" id="board"></div></div>
     </div>
 
+    <button class="diff-btn" id="flag-mode" aria-pressed="false" onclick="toggleFlagMode()">🚩 插旗模式 / Flag</button>
     <p class="instructions">
         <span>左键</span> 翻开格子 &nbsp;&nbsp; <span>右键</span> 标记/取消旗帜
     </p>
@@ -223,6 +224,13 @@
         let timer = 0;
         let timerInterval = null;
         let flagsLeft;
+        let flagMode = false;
+
+        function toggleFlagMode() {
+            flagMode = !flagMode;
+            document.getElementById('flag-mode').setAttribute('aria-pressed', String(flagMode));
+            document.getElementById('flag-mode').classList.toggle('active', flagMode);
+        }
 
         function initGame() {
             const diff = difficulties[currentDifficulty];
@@ -298,7 +306,7 @@
                     cell.dataset.row = r;
                     cell.dataset.col = c;
 
-                    cell.addEventListener('click', () => handleClick(r, c));
+                    cell.addEventListener('click', () => flagMode ? handleRightClick(r, c) : handleClick(r, c));
                     cell.addEventListener('contextmenu', e => {
                         e.preventDefault();
                         handleRightClick(r, c);
@@ -429,9 +437,9 @@
         }
 
         // 难度选择
-        document.querySelectorAll('.diff-btn').forEach(btn => {
+        document.querySelectorAll('.diff-btn[data-level]').forEach(btn => {
             btn.addEventListener('click', () => {
-                document.querySelectorAll('.diff-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.diff-btn[data-level]').forEach(b => b.classList.remove('active'));
                 btn.classList.add('active');
                 currentDifficulty = btn.dataset.level;
                 initGame();

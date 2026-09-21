@@ -73,21 +73,21 @@ const gameGuides = {
         "zh": {
             "intro": "根据数字线索判断地雷位置，打开所有安全格。可选初级、中级、高级，棋盘与地雷数量随难度变化。",
             "gameplay": "数字表示周围八格中的地雷数。先打开安全区域，再标记疑似地雷。第一下及其周围不会布雷，空白区域会自动展开。",
-            "controls": "鼠标左键打开格子，右键插旗或取消旗帜；点击笑脸重新开始。需要右键标记，推荐用带鼠标的电脑。",
+            "controls": "鼠标左键打开格子，右键插旗或取消旗帜；点击笑脸重新开始。触屏可先开启“插旗模式”，再点按格子标记；关闭后恢复翻开。",
             "scoring": "初级 9×9/10 雷，中级 16×16/40 雷，高级 16×30/99 雷。打开全部非雷格即获胜，踩雷即结束；插旗本身不代表获胜。",
             "tips": "当一个数字周围已有足够旗帜时，其余邻格可进一步判断为安全。不要把尚未证实的猜测当成确定信息。"
         },
         "en": {
             "intro": "Use number clues to locate mines and uncover every safe square. Three difficulty settings change the board size and mine count.",
             "gameplay": "A number counts mines in its eight neighboring squares. The first opened square and its neighbors are mine-free; empty regions expand automatically.",
-            "controls": "Left-click to reveal, right-click to add or remove a flag. Click the smiley to restart. A computer with a mouse is recommended for flagging.",
+            "controls": "Left-click to reveal, right-click to add or remove a flag. Click the smiley to restart. On touch screens, enable Flag mode to mark squares and disable it to reveal them.",
             "scoring": "Easy: 9×9 with 10 mines; medium: 16×16 with 40; hard: 16×30 with 99. Reveal all safe squares to win. Opening a mine ends the game; flags alone do not win it.",
             "tips": "Compare neighboring clues. Once confirmed flags satisfy a number, its remaining neighbors are safe. Keep guesses separate from proven deductions."
         },
         "ja": {
             "intro": "数字を手がかりに地雷を避け、すべての安全なマスを開くゲームです。難易度は 3 段階あります。",
             "gameplay": "数字は周囲 8 マスの地雷数です。最初に開くマスとその周囲には地雷がなく、空白部分は自動で広がります。",
-            "controls": "左クリックで開き、右クリックで旗を付け外しします。笑顔ボタンでやり直せます。旗の操作にはマウス付きパソコンがおすすめです。",
+            "controls": "左クリックで開き、右クリックで旗を付け外しします。笑顔ボタンでやり直せます。タッチ操作では Flag ボタンをオンにして旗を置き、オフにしてマスを開きます。",
             "scoring": "初級は 9×9・10 個、中級は 16×16・40 個、上級は 16×30・99 個。安全なマスを全部開くと勝利、地雷を開くと終了です。旗だけでは勝利になりません。",
             "tips": "複数の数字を照らし合わせましょう。確定した旗が必要数に達した数字の残りの隣接マスは安全です。推測と確定を区別しましょう。"
         }
@@ -120,21 +120,21 @@ const gameGuides = {
             "intro": "在仓库中移动角色，把箱子推到星标位置。箱子只能推不能拉，落进死角后往往需要重新规划。",
             "gameplay": "走到箱子旁并朝它移动即可推动。一次只能推一个箱子，前方有墙或其他箱子时推不动；让所有目标点都有箱子即可过关。",
             "controls": "方向键或小写 WASD 移动，也可点按画面方向按钮。选关按钮切换关卡，“重置关卡”恢复本关初始布局。",
-            "scoring": "页面分别统计移动步数和推箱次数。完成当前布局后可进入下一关；推错时使用重置，本版没有撤销按钮。",
+            "scoring": "页面分别统计移动步数和推箱次数。完成当前布局后可进入下一关；共有 5 个练习关卡；“撤销 / Undo”退回上一步，“重置关卡”从头开始。",
             "tips": "先检查箱子最终要从哪一侧推入目标点。不要把箱子推到没有目标的墙角，并为角色绕到箱子后方留通路。"
         },
         "en": {
             "intro": "Push crates onto marked targets in a warehouse. Crates can be pushed but never pulled, so a wrong move can trap one.",
             "gameplay": "Walk toward a crate to push it one square. A wall or another crate blocks the push. Cover every target with a crate to complete the layout.",
             "controls": "Use arrow keys, lowercase WASD, or the on-screen arrows. Select a level with its button; Reset restores its starting layout.",
-            "scoring": "Moves and pushes are counted separately. Complete a layout to advance. Use Reset after a deadlock; this version has no undo button.",
+            "scoring": "Moves and pushes are counted separately. Complete a layout to advance. There are five practice levels. Undo reverses one move; Reset starts the level again.",
             "tips": "Plan which side of each crate you must stand on. Avoid corners without targets and keep a route around the crates."
         },
         "ja": {
             "intro": "倉庫の箱を星印まで押すパズルです。箱は押せますが引けないため、動かす前の確認が大切です。",
             "gameplay": "箱に向かって歩くと一つ先へ押せます。壁や別の箱があれば押せません。すべての目標を箱で埋めるとクリアです。",
             "controls": "矢印キー、小文字 WASD、画面内の方向ボタンで移動します。ステージ選択で切り替え、「リセット」で初期配置に戻せます。",
-            "scoring": "歩数と押した回数を別々に数えます。クリア後は次へ進めます。この版には一手戻すボタンがないため、行き詰まったらリセットします。",
+            "scoring": "歩数と押した回数を別々に数えます。クリア後は次へ進めます。練習ステージは 5 つ。「Undo」で一手戻し、リセットで最初からやり直せます。",
             "tips": "最後に箱をどちら側から押すか考えましょう。目標のない隅には押し込まず、箱の後ろへ回れる道を残してください。"
         }
     },

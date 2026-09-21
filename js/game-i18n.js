@@ -4,7 +4,16 @@
  * 用法: <script src="../../js/game-i18n.js"></script>
  */
 (function () {
-    const lang = localStorage.getItem('gamezone-lang') || 'zh';
+    const requestedLanguage = new URLSearchParams(location.search).get('lang');
+    let savedLanguage = 'zh';
+    try { savedLanguage = localStorage.getItem('gamezone-lang') || 'zh'; }
+    catch (error) {
+        if (error.name !== 'SecurityError') throw error;
+        console.warn('Language preference is unavailable:', error.message);
+    }
+    const language = requestedLanguage || savedLanguage;
+    const lang = ['zh', 'en', 'ja'].includes(language) ? language : 'zh';
+    document.documentElement.lang = lang === 'zh' ? 'zh-CN' : lang;
     if (lang === 'zh') return; // 默认中文不需要翻译
 
     // 通用翻译表

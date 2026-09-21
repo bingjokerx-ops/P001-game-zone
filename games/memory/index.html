@@ -255,6 +255,8 @@
         let timerInterval = null;
         let gameStarted = false;
         let canFlip = true;
+        let flipTimeout;
+        let winTimeout;
 
         function shuffle(array) {
             const shuffled = [...array];
@@ -314,10 +316,11 @@
                 canFlip = true;
 
                 if (matchedPairs === 8) {
-                    setTimeout(showWin, 500);
+                    stopTimer();
+                    winTimeout = setTimeout(showWin, 500);
                 }
             } else {
-                setTimeout(() => {
+                flipTimeout = setTimeout(() => {
                     card1.classList.remove('flipped');
                     card2.classList.remove('flipped');
                     flippedCards = [];
@@ -354,6 +357,8 @@
         }
 
         function initGame() {
+            clearTimeout(flipTimeout);
+            clearTimeout(winTimeout);
             // 重置状态
             stopTimer();
             cards = [];

@@ -300,12 +300,17 @@
 
                 if (getValidMoves(currentPlayer).length === 0) {
                     // Game over
+                    updateScore();
+                    renderBoard();
                     gameOver();
                     return;
                 }
 
+                updateScore();
+                renderBoard();
                 document.getElementById('message').textContent =
-                    `${currentPlayer === 'black' ? '黑棋' : '白棋'}无法移动，跳过回合`;
+                    `${currentPlayer === 'black' ? '白棋' : '黑棋'}无法移动，跳过回合`;
+                return;
             }
 
             updateScore();

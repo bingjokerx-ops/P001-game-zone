@@ -234,9 +234,11 @@
 
     <p class="controls">使用方向键或滑动屏幕来移动</p>
 
+    <script src="../../js/merge-rules.js"></script>
     <script>
         let grid = [];
         let score = 0;
+        let ended = false;
         let best = parseInt(localStorage.getItem('2048-best')) || 0;
 
         const gridElement = document.getElementById('grid');
@@ -246,6 +248,7 @@
         const endMessage = document.getElementById('end-message');
 
         function initGame() {
+            ended = false;
             grid = Array(4).fill(null).map(() => Array(4).fill(0));
             score = 0;
             updateScore();
@@ -295,19 +298,13 @@
         }
 
         function slide(row) {
-            let arr = row.filter(x => x !== 0);
-            for (let i = 0; i < arr.length - 1; i++) {
-                if (arr[i] === arr[i + 1]) {
-                    arr[i] *= 2;
-                    score += arr[i];
-                    arr.splice(i + 1, 1);
-                }
-            }
-            while (arr.length < 4) arr.push(0);
-            return arr;
+            const merged = GameZoneMerge.mergeRow(row);
+            score += merged.points;
+            return merged.row;
         }
 
         function move(direction) {
+            if (ended) return;
             let moved = false;
             const oldGrid = JSON.stringify(grid);
 
@@ -347,6 +344,8 @@
             for (let i = 0; i < 4; i++) {
                 for (let j = 0; j < 4; j++) {
                     if (grid[i][j] === 2048) {
+                        ended = true;
+                        window.parent.postMessage({ type: 'gameScore', score, game: '2048' }, location.origin);
                         endMessage.textContent = '你赢了! 🎉';
                         gameOverElement.classList.add('show');
                         return;
@@ -370,6 +369,7 @@
             }
 
             // 游戏结束
+            ended = true;
             endMessage.textContent = '游戏结束!';
             gameOverElement.classList.add('show');
             // 向父页面发送分数
@@ -387,16 +387,20 @@
 
         // 触摸控制
         let touchStartX, touchStartY;
-        document.addEventListener('touchstart', (e) => {
+        gridElement.style.touchAction = 'none';
+        gridElement.addEventListener('touchstart', (e) => {
             touchStartX = e.touches[0].clientX;
             touchStartY = e.touches[0].clientY;
         });
 
-        document.addEventListener('touchend', (e) => {
-            if (!touchStartX || !touchStartY) return;
+        gridElement.addEventListener('touchend', (e) => {
+            if (touchStartX == null || touchStartY == null) return;
 
             const dx = e.changedTouches[0].clientX - touchStartX;
             const dy = e.changedTouches[0].clientY - touchStartY;
+            touchStartX = null;
+            touchStartY = null;
+            if (Math.max(Math.abs(dx), Math.abs(dy)) < 15) return;
 
             if (Math.abs(dx) > Math.abs(dy)) {
                 move(dx > 0 ? 'right' : 'left');
